@@ -1,0 +1,68 @@
+# Connection Pooling & Session State Pitfalls in Multi-Tenant PostgreSQL
+
+## 1. PgBouncer Connection Pooling Modes
+PgBouncer manages database connection pools. The pool mode determines when a physical database connection is returned to the pool and can be reassigned to another client session.
+
+* **`session` (Default):** 
+  * The physical server connection is tied to the client for the entire duration of the client's connection.
+  * *Security Aspect:* Safe for session-state variables, but limits scalability (cannot handle thousands of concurrent client connections).
+* **`transaction`:** 
+  * The physical server connection is released back to the pool as soon as the client's transaction finishes (`COMMIT` or `ROLLBACK`). 
+  * *Security Aspect:* Highly scalable, but **extremely dangerous for session state**. Session variables set outside transaction boundaries or via persistent commands will persist on the connection and leak to subsequent clients.
+* **`statement`:** 
+  * The connection is returned to the pool after each query. Multi-statement transactions are disabled.
+  * *Security Aspect:* Session variables and transactions cannot be used at all.
+
+---
+
+## 2. The Fallstick: Session Variable Leakage vs. `SET LOCAL`
+When implementing Row-Level Security (RLS) in multi-tenant databases, applications often set identity variables (GUCs - Grand Unified Configuration parameters) like `app.current_tenant` to filter rows.
+
+### The Vulnerability: Regular `SET` in Transaction Pooling
+If the application runs a session-level configuration:
+```sql
+SET app.current_tenant = 'tenant_A';
+SELECT * FROM documents;
+```
+In PgBouncer's `transaction` pool mode, once the query/transaction commits, the physical connection returns to the pool with `app.current_tenant` still set to `'tenant_A'`. 
+When another client (e.g., Tenant B) issues a transaction, PgBouncer might hand them this same physical connection. If Tenant B's application code fails to set `app.current_tenant` before querying, their query will execute with `app.current_tenant = 'tenant_A'`, leading to **cross-tenant data leakage**.
+
+### The Defense: `SET LOCAL` inside a Transaction
+`SET LOCAL` (or calling the function `set_config(name, value, true)`) limits the scope of the configuration parameter strictly to the current transaction.
+```sql
+BEGIN;
+SET LOCAL app.current_tenant = 'tenant_A'; -- or SELECT set_config('app.current_tenant', 'tenant_A', true);
+SELECT * FROM documents;
+COMMIT; -- or ROLLBACK;
+```
+Upon `COMMIT` or `ROLLBACK`, PostgreSQL automatically discards the local value and reverts to the default. The connection is returned to the pool in a clean state, preventing identity leakage.
+
+*Note on Custom GUCs:* Custom namespaced variables (like `app.current_tenant`) do not need to be pre-declared in `postgresql.conf`. If you read a custom GUC that has not been set yet, PostgreSQL will raise an error unless you use `current_setting('app.current_tenant', true)` (the `true` parameter represents `missing_ok`, which returns `NULL` instead of throwing an error).
+
+---
+
+## 3. Configuring `log_statement = 'all'`
+To ensure the identity variable (`app.current_tenant`) and executed SQL queries are properly audited in database logs (the "Oracle Log" or audit trail), `log_statement` must be set to `all`.
+
+### Configuration Methods
+1. **Permanent Configuration via `postgresql.conf`:**
+   Open `postgresql.conf` and set:
+   ```ini
+   log_statement = 'all'
+   ```
+   Apply the changes by reloading the configuration (no restart required):
+   ```sql
+   SELECT pg_reload_conf();
+   ```
+
+2. **Dynamic Configuration (Superuser only):**
+   ```sql
+   ALTER SYSTEM SET log_statement = 'all';
+   SELECT pg_reload_conf();
+   ```
+
+### Behavior of `log_statement = 'all'`
+* Logs all SQL statements sent to the server.
+* For clients using the extended query protocol, logging occurs when an `Execute` message is received, and the values of the bind parameters are included in the log.
+* **Audit Trail Security:** By logging both the GUC setting transaction (`SET LOCAL app.current_tenant = '...'`) and the subsequent queries, security audits can trace exactly which application tenant initiated which database query.
+* *Warning:* Statements with simple syntax errors are not logged by `log_statement = 'all'`. To log syntax errors, set `log_min_error_statement` to `ERROR` or lower.

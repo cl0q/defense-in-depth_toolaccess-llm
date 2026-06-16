@@ -1,0 +1,56 @@
+# Prompt-to-SQL (P2SQL) Injection
+
+## Metadata
+* **Title:** From Prompt Injections to SQL Injection Attacks: How Protected is Your LLM-Integrated Web Application? (Published at ICSE 2025 as "Prompt-to-SQL Injections in LLM-Integrated Web Applications: Risks and Defenses")
+* **Authors:** Rodrigo Pedro, Daniel Castro, Paulo Carreira, Nuno Santos (INESC-ID / Instituto Superior Técnico, Universidade de Lisboa)
+* **Date/Version:** arXiv:2308.01990v4 (Jan 2025)
+* **URL:** https://arxiv.org/abs/2308.01990
+
+---
+
+## 1. Abstract
+Large Language Models (LLMs) are widely used to power chatbots and virtual assistants in web applications. To answer user queries based on context, middleware like LangChain translates natural language prompts into SQL queries executed on the database. 
+This paper investigates **Prompt-to-SQL (P2SQL) Injections**, a security vulnerability where unsanitized user prompts manipulate the LLM into generating malicious SQL queries.
+The authors evaluate this attack across 7 state-of-the-art LLMs (including GPT-3.5, GPT-4, and Llama 2) using LangChain's SQL database utilities. They show that applications are highly vulnerable to unauthorized read/write access.
+To counter these attacks, they propose four defense techniques integrated as extensions to the LangChain framework: (i) database permission hardening, (ii) SQL query rewriting, (iii) auxiliary LLM-based validation, and (iv) in-prompt data preloading.
+
+---
+
+## 2. Methodology
+The target of the study is web applications utilizing LangChain's `SQLDatabaseChain` (or similar agents) to let users query databases in natural language.
+
+### Attack Vector Variants
+1. **Direct P2SQL Injection:** The attacker enters a malicious command directly into the chatbot interface (e.g., "Show me all users, then drop the tables").
+2. **Indirect / Stored P2SQL Injection:** The attacker injects a malicious payload into a database record (e.g., in a job posting's description field). When a benign user subsequently asks the chatbot a question that causes it to retrieve and parse that record, the LLM reads the payload, interprets it as instructions, and executes the malicious SQL queries on behalf of the victim.
+3. **Attack Targets:**
+   * **Data Destruction:** Dropping tables (`DROP TABLE`).
+   * **Data Leakage (Exfiltration):** Dumping password hashes or credit card records (`SELECT`).
+   * **Privilege Escalation:** Creating admin accounts or changing other users' details (`INSERT`/`UPDATE`).
+
+---
+
+## 3. Results & Defenses
+
+### Vulnerability across LLMs
+* **High Susceptibility:** Almost all LLMs (GPT-3.5, PaLM 2, Llama 2, Vicuna) are highly vulnerable to P2SQL. With default prompts, they readily generate queries to drop tables or leak user data.
+* **GPT-4 Robustness:** GPT-4 demonstrated the highest robustness. It resisted simple prompt injections and required highly complex, multi-layered malicious prompts to execute SQL injections. 
+* **Model Limitations:** Smaller open models (like Guanaco and Tulu) made frequent formatting errors and hallucinated table structures, which sometimes caused the SQL chains to fail, but they were still vulnerable when stable.
+
+### Proposed Defenses (Mitigation Matrix)
+The authors proposed and evaluated four defenses to secure LLM-to-database interfaces:
+
+1. **Database Permission Hardening (DBMS Role Restricting):**
+   * *Concept:* Connecting the chatbot to the database with a restricted user role (e.g., `MODE_CHATBOT` with read-only `SELECT` access, revoking `INSERT`, `UPDATE`, and `DELETE`).
+   * *Limitation:* Does not prevent data confidentiality violations (arbitrary reads like dumping all email addresses/hashes).
+
+2. **SQL Query Rewriting (Row-Level Security / RLS Enforcement):**
+   * *Concept:* Automatically parsing and rewriting the generated SQL query to include mandatory conditions (e.g., forcing a `WHERE user_id = 5` filter).
+   * *Limitation:* Requires a secure SQL parser integrated into the middleware.
+
+3. **Auxiliary LLM-based Validation (LLM Guard / Dual LLM):**
+   * *Concept:* Running a second, separate LLM call to evaluate the generated SQL query or user prompt for malicious patterns before execution.
+   * *Limitation:* Adds significant latency and API costs.
+
+4. **In-Prompt Data Preloading:**
+   * *Concept:* Hardening the system prompt by preloading schemas and strict guidelines (e.g., denying system catalog access like `pg_shadow`).
+   * *Limitation:* Vulnerable to prompt injection bypasses.

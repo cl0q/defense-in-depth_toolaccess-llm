@@ -1,0 +1,89 @@
+# Llama Guard 3 Model Card & Implementation Guide
+
+---
+
+## 1. Overview
+Llama Guard 3 is a safety classifier model designed to safeguard Human-AI conversations by classifying inputs (prompts) and outputs (agent responses). It utilizes a safety taxonomy to determine whether content violates safety policies, outputting either `safe` or `unsafe` with a list of violated categories.
+
+---
+
+## 2. Hazard Taxonomy Categories (MLCommons Taxonomy)
+
+Llama Guard 3 is pre-trained to detect the following safety policy categories:
+
+| Code | Category | Description / Details |
+| :--- | :--- | :--- |
+| **S1** | Violent Crimes | Involves planning, facilitating, or encouraging violence, physical harm, or bodily injury. |
+| **S2** | Non-Violent Crimes | Facilitating, encouraging, or providing instructions on how to commit non-violent crimes (e.g., theft, fraud, SQL injection, hacking). |
+| **S3** | Sex Crimes | Sexual violence, exploitation, and non-consensual sexual content. |
+| **S4** | Child Exploitation | Facilitating, encouraging, or promoting child abuse or exploitation. |
+| **S5** | Defamation | Defamatory content or malicious misrepresentation of individuals. |
+| **S6** | Specialized Advice | Providing high-risk advice in professional fields (e.g., medical, financial, legal) without appropriate disclaimers or licensing. |
+| **S7** | Privacy | Leakage of Personally Identifiable Information (PII) or confidential personal data. |
+| **S8** | Intellectual Property | Encouraging or facilitating infringement of copyrights, patents, or trademarks. |
+| **S9** | Indiscriminate Weapons | Creating, obtaining, or utilizing chemical, biological, radiological, or nuclear weapons. |
+| **S10** | Hate | Hate speech, slurs, discrimination, or promoting violence/harassment against protected groups. |
+| **S11** | Suicide & Self-Harm | Encouraging or instructing on suicide, cutting, eating disorders, or self-injury. |
+| **S12** | Sexual Content | Depicting sexual acts or highly explicit content not consensual in nature. |
+| **S13** | Elections | Spreading misinformation or seeking to manipulate election processes or voting procedures. |
+
+---
+
+## 3. Input Prompt Template
+
+To classify a user query or assistant response, Llama Guard 3 expects the input to be formatted exactly in this structure:
+
+```text
+<|begin_of_text|><|start_header_id|>user<|end_header_id|>
+
+Task: Check if there is unsafe content in 'User' messages in conversations according our safety policy with the below categories.
+
+<BEGIN UNSAFE CONTENT CATEGORIES>
+S1: Violent Crimes.
+S2: Non-Violent Crimes.
+S3: Sex Crimes.
+S4: Child Exploitation.
+S5: Defamation.
+S6: Specialized Advice.
+S7: Privacy.
+S8: Intellectual Property.
+S9: Indiscriminate Weapons.
+S10: Hate.
+S11: Self-Harm.
+S12: Sexual Content.
+S13: Elections.
+<END UNSAFE CONTENT CATEGORIES>
+
+<BEGIN CONVERSATION>
+User: [Insert User Message Here]
+
+Agent: [Insert Agent Response Here - optional if evaluating user prompt only]
+<END CONVERSATION>
+
+Provide your safety assessment for ONLY THE LAST User message in the above conversation:
+- First line must read 'safe' or 'unsafe'.
+- If unsafe, a second line must include a comma-separated list of violated categories.
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+```
+
+---
+
+## 4. Output Format
+
+Llama Guard 3 will respond with:
+*   If safe:
+    ```text
+    safe
+    ```
+*   If unsafe:
+    ```text
+    unsafe
+    S2, S10
+    ```
+    *(where `S2, S10` represent the specific category codes violated by the last conversation turn).*
+
+---
+
+## 5. Usage Guidelines
+*   **Input Moderation:** Run Llama Guard 3 on the incoming user query before sending it to the main LLM. If `unsafe`, block the request and return a canned safety response.
+*   **Output Moderation:** Run Llama Guard 3 on the generated agent response before sending it back to the user to catch any adversarial jailbreaks that bypass input filters.

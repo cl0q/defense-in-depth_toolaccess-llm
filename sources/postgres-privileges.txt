@@ -1,0 +1,328 @@
+# PostgreSQL 16 GRANT & Privileges Documentation
+
+---
+
+## Part 1: GRANT SQL Command (from sql-grant.html)
+
+| GRANT 
+ | Prev | Up | SQL Commands | Home | Next 
+
+## GRANT 
+
+GRANT — define access privileges 
+
+## Synopsis 
+
+```sql
+
+GRANT { { SELECT | INSERT | UPDATE | DELETE | TRUNCATE | REFERENCES | TRIGGER }
+ [, ...] | ALL [ PRIVILEGES ] }
+ ON { [ TABLE ] `table_name` [, ...] | ALL TABLES IN SCHEMA `schema_name` [, ...] } TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { { SELECT | INSERT | UPDATE | REFERENCES } ( `column_name` [, ...] ) [, ...] | ALL [ PRIVILEGES ] ( `column_name` [, ...] ) } ON [ TABLE ] `table_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { { USAGE | SELECT | UPDATE } [, ...] | ALL [ PRIVILEGES ] } ON { SEQUENCE `sequence_name` [, ...] | ALL SEQUENCES IN SCHEMA `schema_name` [, ...] } TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { { CREATE | CONNECT | TEMPORARY | TEMP } [, ...] | ALL [ PRIVILEGES ] } ON DATABASE `database_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { USAGE | ALL [ PRIVILEGES ] } ON DOMAIN `domain_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { USAGE | ALL [ PRIVILEGES ] } ON FOREIGN DATA WRAPPER `fdw_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { USAGE | ALL [ PRIVILEGES ] } ON FOREIGN SERVER `server_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { EXECUTE | ALL [ PRIVILEGES ] } ON { { FUNCTION | PROCEDURE | ROUTINE } `routine_name` [ ( [ [ `argmode` ] [ `arg_name` ] `arg_type` [, ...] ] ) ] [, ...] | ALL { FUNCTIONS | PROCEDURES | ROUTINES } IN SCHEMA `schema_name` [, ...] } TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { USAGE | ALL [ PRIVILEGES ] } ON LANGUAGE `lang_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { { SELECT | UPDATE } [, ...] | ALL [ PRIVILEGES ] } ON LARGE OBJECT `loid` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { { SET | ALTER SYSTEM } [, ... ] | ALL [ PRIVILEGES ] } ON PARAMETER `configuration_parameter` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { { CREATE | USAGE } [, ...] | ALL [ PRIVILEGES ] } ON SCHEMA `schema_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { CREATE | ALL [ PRIVILEGES ] } ON TABLESPACE `tablespace_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT { USAGE | ALL [ PRIVILEGES ] } ON TYPE `type_name` [, ...] TO `role_specification` [, ...] [ WITH GRANT OPTION ] [ GRANTED BY `role_specification` ] GRANT `role_name` [, ...] TO `role_specification` [, ...] [ WITH { ADMIN | INHERIT | SET } { OPTION | TRUE | FALSE } ] [ GRANTED BY `role_specification` ] where `role_specification` can be: [ GROUP ] `role_name` | PUBLIC | CURRENT_ROLE | CURRENT_USER | SESSION_USER 
+```
+
+## Description 
+
+The `GRANT` command has two basic variants: one that grants privileges on a database object (table, column, view, foreign table, sequence, database, foreign-data wrapper, foreign server, function, procedure, procedural language, large object, configuration parameter, schema, tablespace, or type), and one that grants membership in a role. These variants are similar in many ways, but they are different enough to be described separately. 
+
+### GRANT on Database Objects 
+
+This variant of the `GRANT` command gives specific privileges on a database object to one or more roles. These privileges are added to those already granted, if any. 
+
+The key word `PUBLIC` indicates that the privileges are to be granted to all roles, including those that might be created later. `PUBLIC` can be thought of as an implicitly defined group that always includes all roles. Any particular role will have the sum of privileges granted directly to it, privileges granted to any role it is presently a member of, and privileges granted to `PUBLIC`. 
+
+If `WITH GRANT OPTION` is specified, the recipient of the privilege can in turn grant it to others. Without a grant option, the recipient cannot do that. Grant options cannot be granted to `PUBLIC`. 
+
+If `GRANTED BY` is specified, the specified grantor must be the current user. This clause is currently present in this form only for SQL compatibility. 
+
+There is no need to grant privileges to the owner of an object (usually the user that created it), as the owner has all privileges by default. (The owner could, however, choose to revoke some of their own privileges for safety.) 
+
+The right to drop an object, or to alter its definition in any way, is not treated as a grantable privilege; it is inherent in the owner, and cannot be granted or revoked. (However, a similar effect can be obtained by granting or revoking membership in the role that owns the object; see below.) The owner implicitly has all grant options for the object, too. 
+
+The possible privileges are: `SELECT`
+`INSERT`
+`UPDATE`
+`DELETE`
+`TRUNCATE`
+`REFERENCES`
+`TRIGGER`
+`CREATE`
+`CONNECT`
+`TEMPORARY`
+`EXECUTE`
+`USAGE`
+`SET`
+`ALTER SYSTEM` 
+
+Specific types of privileges, as defined in Section 5.7. `TEMP` 
+
+Alternative spelling for `TEMPORARY`. `ALL PRIVILEGES` 
+
+Grant all of the privileges available for the object's type. The `PRIVILEGES` key word is optional in PostgreSQL, though it is required by strict SQL. 
+
+The `FUNCTION` syntax works for plain functions, aggregate functions, and window functions, but not for procedures; use `PROCEDURE` for those. Alternatively, use `ROUTINE` to refer to a function, aggregate function, window function, or procedure regardless of its precise type. 
+
+There is also an option to grant privileges on all objects of the same type within one or more schemas. This functionality is currently supported only for tables, sequences, functions, and procedures. `ALL TABLES` also affects views and foreign tables, just like the specific-object `GRANT` command. `ALL FUNCTIONS` also affects aggregate and window functions, but not procedures, again just like the specific-object `GRANT` command. Use `ALL ROUTINES` to include procedures. 
+
+### GRANT on Roles 
+
+This variant of the `GRANT` command grants membership in a role to one or more other roles, and the modification of membership options `SET`, `INHERIT`, and `ADMIN`; see Section 22.3 for details. Membership in a role is significant because it potentially allows access to the privileges granted to a role to each of its members, and potentially also the ability to make changes to the role itself. However, the actual permissions conferred depend on the options associated with the grant. To modify that options of an existing membership, simply specify the membership with updated option values. 
+
+Each of the options described below can be set to either `TRUE` or `FALSE`. The keyword `OPTION` is accepted as a synonym for `TRUE`, so that `WITH ADMIN OPTION` is a synonym for `WITH ADMIN TRUE`. When altering an existing membership the omission of an option results in the current value being retained. 
+
+The `ADMIN` option allows the member to in turn grant membership in the role to others, and revoke membership in the role as well. Without the admin option, ordinary users cannot do that. A role is not considered to hold `WITH ADMIN OPTION` on itself. Database superusers can grant or revoke membership in any role to anyone. This option defaults to `FALSE`. 
+
+The `INHERIT` option controls the inheritance status of the new membership; see Section 22.3 for details on inheritance. If it is set to `TRUE`, it causes the new member to inherit from the granted role. If set to `FALSE`, the new member does not inherit. If unspecified when creating a new role membership, this defaults to the inheritance attribute of the new member. 
+
+The `SET` option, if it is set to `TRUE`, allows the member to change to the granted role using the `SET ROLE` command. If a role is an indirect member of another role, it can use `SET ROLE` to change to that role only if there is a chain of grants each of which has `SET TRUE`. This option defaults to `TRUE`. 
+
+To create an object owned by another role or give ownership of an existing object to another role, you must have the ability to `SET ROLE` to that role; otherwise, commands such as `ALTER ... OWNER TO` or `CREATE DATABASE ... OWNER` will fail. However, a user who inherits the privileges of a role but does not have the ability to `SET ROLE` to that role may be able to obtain full access to the role by manipulating existing objects owned by that role (e.g. they could redefine an existing function to act as a Trojan horse). Therefore, if a role's privileges are to be inherited but should not be accessible via `SET ROLE`, it should not own any SQL objects. 
+
+If `GRANTED BY` is specified, the grant is recorded as having been done by the specified role. A user can only attribute a grant to another role if they possess the privileges of that role. The role recorded as the grantor must have `ADMIN OPTION` on the target role, unless it is the bootstrap superuser. When a grant is recorded as having a grantor other than the bootstrap superuser, it depends on the grantor continuing to possess `ADMIN OPTION` on the role; so, if `ADMIN OPTION` is revoked, dependent grants must be revoked as well. 
+
+Unlike the case with privileges, membership in a role cannot be granted to `PUBLIC`. Note also that this form of the command does not allow the noise word `GROUP` in `role_specification`. 
+
+## Notes 
+
+The `REVOKE` command is used to revoke access privileges. 
+
+Since PostgreSQL 8.1, the concepts of users and groups have been unified into a single kind of entity called a role. It is therefore no longer necessary to use the keyword `GROUP` to identify whether a grantee is a user or a group. `GROUP` is still allowed in the command, but it is a noise word. 
+
+A user may perform `SELECT`, `INSERT`, etc. on a column if they hold that privilege for either the specific column or its whole table. Granting the privilege at the table level and then revoking it for one column will not do what one might wish: the table-level grant is unaffected by a column-level operation. 
+
+When a non-owner of an object attempts to `GRANT` privileges on the object, the command will fail outright if the user has no privileges whatsoever on the object. As long as some privilege is available, the command will proceed, but it will grant only those privileges for which the user has grant options. The `GRANT ALL PRIVILEGES` forms will issue a warning message if no grant options are held, while the other forms will issue a warning if grant options for any of the privileges specifically named in the command are not held. (In principle these statements apply to the object owner as well, but since the owner is always treated as holding all grant options, the cases can never occur.) 
+
+It should be noted that database superusers can access all objects regardless of object privilege settings. This is comparable to the rights of `root` in a Unix system. As with `root`, it's unwise to operate as a superuser except when absolutely necessary. 
+
+If a superuser chooses to issue a `GRANT` or `REVOKE` command, the command is performed as though it were issued by the owner of the affected object. In particular, privileges granted via such a command will appear to have been granted by the object owner. (For role membership, the membership appears to have been granted by the bootstrap superuser.) 
+
+`GRANT` and `REVOKE` can also be done by a role that is not the owner of the affected object, but is a member of the role that owns the object, or is a member of a role that holds privileges `WITH GRANT OPTION` on the object. In this case the privileges will be recorded as having been granted by the role that actually owns the object or holds the privileges `WITH GRANT OPTION`. For example, if table `t1` is owned by role `g1`, of which role `u1` is a member, then `u1` can grant privileges on `t1` to `u2`, but those privileges will appear to have been granted directly by `g1`. Any other member of role `g1` could revoke them later. 
+
+If the role executing `GRANT` holds the required privileges indirectly via more than one role membership path, it is unspecified which containing role will be recorded as having done the grant. In such cases it is best practice to use `SET ROLE` to become the specific role you want to do the `GRANT` as. 
+
+Granting permission on a table does not automatically extend permissions to any sequences used by the table, including sequences tied to `SERIAL` columns. Permissions on sequences must be set separately. 
+
+See Section 5.7 for more information about specific privilege types, as well as how to inspect objects' privileges. 
+
+## Examples 
+
+Grant insert privilege to all users on table `films`: 
+
+```sql
+
+GRANT INSERT ON films TO PUBLIC;
+
+```
+
+Grant all available privileges to user `manuel` on view `kinds`: 
+
+```sql
+
+GRANT ALL PRIVILEGES ON kinds TO manuel;
+
+```
+
+Note that while the above will indeed grant all privileges if executed by a superuser or the owner of `kinds`, when executed by someone else it will only grant those permissions for which the someone else has grant options. 
+
+Grant membership in role `admins` to user `joe`: 
+
+```sql
+
+GRANT admins TO joe;
+
+```
+
+## Compatibility 
+
+According to the SQL standard, the `PRIVILEGES` key word in `ALL PRIVILEGES` is required. The SQL standard does not support setting the privileges on more than one object per command. 
+
+PostgreSQL allows an object owner to revoke their own ordinary privileges: for example, a table owner can make the table read-only to themselves by revoking their own `INSERT`, `UPDATE`, `DELETE`, and `TRUNCATE` privileges. This is not possible according to the SQL standard. The reason is that PostgreSQL treats the owner's privileges as having been granted by the owner to themselves; therefore they can revoke them too. In the SQL standard, the owner's privileges are granted by an assumed entity “_SYSTEM”. Not being “_SYSTEM”, the owner cannot revoke these rights. 
+
+According to the SQL standard, grant options can be granted to `PUBLIC`; PostgreSQL only supports granting grant options to roles. 
+
+The SQL standard allows the `GRANTED BY` option to specify only `CURRENT_USER` or `CURRENT_ROLE`. The other variants are PostgreSQL extensions. 
+
+The SQL standard provides for a `USAGE` privilege on other kinds of objects: character sets, collations, translations. 
+
+In the SQL standard, sequences only have a `USAGE` privilege, which controls the use of the `NEXT VALUE FOR` expression, which is equivalent to the function `nextval` in PostgreSQL. The sequence privileges `SELECT` and `UPDATE` are PostgreSQL extensions. The application of the sequence `USAGE` privilege to the `currval` function is also a PostgreSQL extension (as is the function itself). 
+
+Privileges on databases, tablespaces, schemas, languages, and configuration parameters are PostgreSQL extensions. 
+
+## See AlsoREVOKE, ALTER DEFAULT PRIVILEGES 
+ | Prev | Up | Next 
+ | FETCH | Home | IMPORT FOREIGN SCHEMA
+
+---
+
+## Part 2: Privileges in PostgreSQL (from ddl-priv.html)
+
+| 5.7. Privileges 
+ | Prev | Up | Chapter 5. Data Definition | Home | Next 
+
+## 5.7. Privileges # 
+
+When an object is created, it is assigned an owner. The owner is normally the role that executed the creation statement. For most kinds of objects, the initial state is that only the owner (or a superuser) can do anything with the object. To allow other roles to use it, privileges must be granted. 
+
+There are different kinds of privileges: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, `REFERENCES`, `TRIGGER`, `CREATE`, `CONNECT`, `TEMPORARY`, `EXECUTE`, `USAGE`, `SET` and `ALTER SYSTEM`. The privileges applicable to a particular object vary depending on the object's type (table, function, etc.). More detail about the meanings of these privileges appears below. The following sections and chapters will also show you how these privileges are used. 
+
+The right to modify or destroy an object is inherent in being the object's owner, and cannot be granted or revoked in itself. (However, like all privileges, that right can be inherited by members of the owning role; see Section 22.3.) 
+
+An object can be assigned to a new owner with an `ALTER` command of the appropriate kind for the object, for example 
+
+```sql
+
+ALTER TABLE `table_name` OWNER TO `new_owner`; 
+```
+
+Superusers can always do this; ordinary roles can only do it if they are both the current owner of the object (or inherit the privileges of the owning role) and able to `SET ROLE` to the new owning role. All object privileges of the old owner are transferred to the new owner along with the ownership. 
+
+To assign privileges, the GRANT command is used. For example, if `joe` is an existing role, and `accounts` is an existing table, the privilege to update the table can be granted with: 
+
+```sql
+
+GRANT UPDATE ON accounts TO joe;
+
+```
+
+Writing `ALL` in place of a specific privilege grants all privileges that are relevant for the object type. 
+
+The special “role” name `PUBLIC` can be used to grant a privilege to every role on the system. Also, “group” roles can be set up to help manage privileges when there are many users of a database — for details see Chapter 22. 
+
+To revoke a previously-granted privilege, use the fittingly named REVOKE command: 
+
+```sql
+
+REVOKE ALL ON accounts FROM PUBLIC;
+
+```
+
+Ordinarily, only the object's owner (or a superuser) can grant or revoke privileges on an object. However, it is possible to grant a privilege “with grant option”, which gives the recipient the right to grant it in turn to others. If the grant option is subsequently revoked then all who received the privilege from that recipient (directly or through a chain of grants) will lose the privilege. For details see the GRANT and REVOKE reference pages. 
+
+An object's owner can choose to revoke their own ordinary privileges, for example to make a table read-only for themselves as well as others. But owners are always treated as holding all grant options, so they can always re-grant their own privileges. 
+
+The available privileges are: `SELECT` # 
+
+Allows `SELECT` from any column, or specific column(s), of a table, view, materialized view, or other table-like object. Also allows use of `COPY TO`. This privilege is also needed to reference existing column values in `UPDATE`, `DELETE`, or `MERGE`. For sequences, this privilege also allows use of the `currval` function. For large objects, this privilege allows the object to be read. `INSERT` # 
+
+Allows `INSERT` of a new row into a table, view, etc. Can be granted on specific column(s), in which case only those columns may be assigned to in the `INSERT` command (other columns will therefore receive default values). Also allows use of `COPY FROM`. `UPDATE` # 
+
+Allows `UPDATE` of any column, or specific column(s), of a table, view, etc. (In practice, any nontrivial `UPDATE` command will require `SELECT` privilege as well, since it must reference table columns to determine which rows to update, and/or to compute new values for columns.) `SELECT ... FOR UPDATE` and `SELECT ... FOR SHARE` also require this privilege on at least one column, in addition to the `SELECT` privilege. For sequences, this privilege allows use of the `nextval` and `setval` functions. For large objects, this privilege allows writing or truncating the object. `DELETE` # 
+
+Allows `DELETE` of a row from a table, view, etc. (In practice, any nontrivial `DELETE` command will require `SELECT` privilege as well, since it must reference table columns to determine which rows to delete.) `TRUNCATE` # 
+
+Allows `TRUNCATE` on a table. `REFERENCES` # 
+
+Allows creation of a foreign key constraint referencing a table, or specific column(s) of a table. `TRIGGER` # 
+
+Allows creation of a trigger on a table, view, etc. `CREATE` # 
+
+For databases, allows new schemas and publications to be created within the database, and allows trusted extensions to be installed within the database. 
+
+For schemas, allows new objects to be created within the schema. To rename an existing object, you must own the object and have this privilege for the containing schema. 
+
+For tablespaces, allows tables, indexes, and temporary files to be created within the tablespace, and allows databases to be created that have the tablespace as their default tablespace. 
+
+Note that revoking this privilege will not alter the existence or location of existing objects. `CONNECT` # 
+
+Allows the grantee to connect to the database. This privilege is checked at connection startup (in addition to checking any restrictions imposed by `pg_hba.conf`). `TEMPORARY` # 
+
+Allows temporary tables to be created while using the database. `EXECUTE` # 
+
+Allows calling a function or procedure, including use of any operators that are implemented on top of the function. This is the only type of privilege that is applicable to functions and procedures. `USAGE` # 
+
+For procedural languages, allows use of the language for the creation of functions in that language. This is the only type of privilege that is applicable to procedural languages. 
+
+For schemas, allows access to objects contained in the schema (assuming that the objects' own privilege requirements are also met). Essentially this allows the grantee to “look up” objects within the schema. Without this permission, it is still possible to see the object names, e.g., by querying system catalogs. Also, after revoking this permission, existing sessions might have statements that have previously performed this lookup, so this is not a completely secure way to prevent object access. 
+
+For sequences, allows use of the `currval` and `nextval` functions. 
+
+For types and domains, allows use of the type or domain in the creation of tables, functions, and other schema objects. (Note that this privilege does not control all “usage” of the type, such as values of the type appearing in queries. It only prevents objects from being created that depend on the type. The main purpose of this privilege is controlling which users can create dependencies on a type, which could prevent the owner from changing the type later.) 
+
+For foreign-data wrappers, allows creation of new servers using the foreign-data wrapper. 
+
+For foreign servers, allows creation of foreign tables using the server. Grantees may also create, alter, or drop their own user mappings associated with that server. `SET` # 
+
+Allows a server configuration parameter to be set to a new value within the current session. (While this privilege can be granted on any parameter, it is meaningless except for parameters that would normally require superuser privilege to set.) `ALTER SYSTEM` # 
+
+Allows a server configuration parameter to be configured to a new value using the ALTER SYSTEM command. 
+
+The privileges required by other commands are listed on the reference page of the respective command. 
+
+PostgreSQL grants privileges on some types of objects to `PUBLIC` by default when the objects are created. No privileges are granted to `PUBLIC` by default on tables, table columns, sequences, foreign data wrappers, foreign servers, large objects, schemas, tablespaces, or configuration parameters. For other types of objects, the default privileges granted to `PUBLIC` are as follows: `CONNECT` and `TEMPORARY` (create temporary tables) privileges for databases; `EXECUTE` privilege for functions and procedures; and `USAGE` privilege for languages and data types (including domains). The object owner can, of course, `REVOKE` both default and expressly granted privileges. (For maximum security, issue the `REVOKE` in the same transaction that creates the object; then there is no window in which another user can use the object.) Also, these default privilege settings can be overridden using the ALTER DEFAULT PRIVILEGES command. 
+
+Table 5.1 shows the one-letter abbreviations that are used for these privilege types in ACL (Access Control List) values. You will see these letters in the output of the psql commands listed below, or when looking at ACL columns of system catalogs. 
+
+Table 5.1. ACL Privilege Abbreviations 
+ | Privilege | Abbreviation | Applicable Object Types 
+ | `SELECT` | `r` (“read”) | `LARGE OBJECT`, `SEQUENCE`, `TABLE` (and table-like objects), table column 
+ | `INSERT` | `a` (“append”) | `TABLE`, table column 
+ | `UPDATE` | `w` (“write”) | `LARGE OBJECT`, `SEQUENCE`, `TABLE`, table column 
+ | `DELETE` | `d` | `TABLE` 
+ | `TRUNCATE` | `D` | `TABLE` 
+ | `REFERENCES` | `x` | `TABLE`, table column 
+ | `TRIGGER` | `t` | `TABLE` 
+ | `CREATE` | `C` | `DATABASE`, `SCHEMA`, `TABLESPACE` 
+ | `CONNECT` | `c` | `DATABASE` 
+ | `TEMPORARY` | `T` | `DATABASE` 
+ | `EXECUTE` | `X` | `FUNCTION`, `PROCEDURE` 
+ | `USAGE` | `U` | `DOMAIN`, `FOREIGN DATA WRAPPER`, `FOREIGN SERVER`, `LANGUAGE`, `SCHEMA`, `SEQUENCE`, `TYPE` 
+ | `SET` | `s` | `PARAMETER` 
+ | `ALTER SYSTEM` | `A` | `PARAMETER` 
+
+Table 5.2 summarizes the privileges available for each type of SQL object, using the abbreviations shown above. It also shows the psql command that can be used to examine privilege settings for each object type. 
+
+Table 5.2. Summary of Access Privileges 
+ | Object Type | All Privileges | Default `PUBLIC` Privileges | psql Command 
+ | `DATABASE` | `CTc` | `Tc` | `\l` 
+ | `DOMAIN` | `U` | `U` | `\dD+` 
+ | `FUNCTION` or `PROCEDURE` | `X` | `X` | `\df+` 
+ | `FOREIGN DATA WRAPPER` | `U` | none | `\dew+` 
+ | `FOREIGN SERVER` | `U` | none | `\des+` 
+ | `LANGUAGE` | `U` | `U` | `\dL+` 
+ | `LARGE OBJECT` | `rw` | none | `\dl+` 
+ | `PARAMETER` | `sA` | none | `\dconfig+` 
+ | `SCHEMA` | `UC` | none | `\dn+` 
+ | `SEQUENCE` | `rwU` | none | `\dp` 
+ | `TABLE` (and table-like objects) | `arwdDxt` | none | `\dp` 
+ | Table column | `arwx` | none | `\dp` 
+ | `TABLESPACE` | `C` | none | `\db+` 
+ | `TYPE` | `U` | `U` | `\dT+` 
+
+ The privileges that have been granted for a particular object are displayed as a list of `aclitem` entries, each having the format: 
+
+```sql
+
+`grantee``=``privilege-abbreviation`[`*`]...`/``grantor` 
+```
+
+Each `aclitem` lists all the permissions of one grantee that have been granted by a particular grantor. Specific privileges are represented by one-letter abbreviations from Table 5.1, with `*` appended if the privilege was granted with grant option. For example, `calvin=r*w/hobbes` specifies that the role `calvin` has the privilege `SELECT` (`r`) with grant option (`*`) as well as the non-grantable privilege `UPDATE` (`w`), both granted by the role `hobbes`. If `calvin` also has some privileges on the same object granted by a different grantor, those would appear as a separate `aclitem` entry. An empty grantee field in an `aclitem` stands for `PUBLIC`. 
+
+As an example, suppose that user `miriam` creates table `mytable` and does: 
+
+```sql
+
+GRANT SELECT ON mytable TO PUBLIC;
+GRANT SELECT, UPDATE, INSERT ON mytable TO admin;
+GRANT SELECT (col1), UPDATE (col1) ON mytable TO miriam_rw;
+
+```
+
+Then psql's `\dp` command would show: 
+
+```sql
+
+=> \dp mytable
+ Access privileges
+ Schema | Name | Type | Access privileges | Column privileges | Policies
+--------+---------+-------+-----------------------+-----------------------+----------
+ public | mytable | table | miriam=arwdDxt/miriam+| col1: +|
+ | | | =r/miriam +| miriam_rw=rw/miriam |
+ | | | admin=arw/miriam | |
+(1 row)
+
+```
+
+If the “Access privileges” column is empty for a given object, it means the object has default privileges (that is, its privileges entry in the relevant system catalog is null). Default privileges always include all privileges for the owner, and can include some privileges for `PUBLIC` depending on the object type, as explained above. The first `GRANT` or `REVOKE` on an object will instantiate the default privileges (producing, for example, `miriam=arwdDxt/miriam`) and then modify them per the specified request. Similarly, entries are shown in “Column privileges” only for columns with nondefault privileges. (Note: for this purpose, “default privileges” always means the built-in default privileges for the object's type. An object whose privileges have been affected by an `ALTER DEFAULT PRIVILEGES` command will always be shown with an explicit privilege entry that includes the effects of the `ALTER`.) 
+
+Notice that the owner's implicit grant options are not marked in the access privileges display. A `*` will appear only when grant options have been explicitly granted to someone. 
+ | Prev | Up | Next 
+ | 5.6. Modifying Tables | Home | 5.8. Row Security Policies

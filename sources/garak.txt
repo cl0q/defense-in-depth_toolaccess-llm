@@ -1,0 +1,92 @@
+# garak — LLM Vulnerability Scanner CLI Guide
+
+---
+
+## 1. Overview
+`garak` (Generative AI Red-teaming & Assessment Kit) is a vulnerability scanner for Large Language Models. It checks for a wide range of LLM vulnerabilities, including prompt injection, jailbreaking, toxicity, hallucinations, and information leakage.
+
+It is typically used to establish a **baseline vulnerability score** (or null-measurement) against a raw/undefended LLM.
+
+---
+
+## 2. Installation
+You can install `garak` via `pip`:
+```bash
+pip install -U garak
+```
+
+---
+
+## 3. Basic CLI Syntax
+
+To scan a model, you need to specify a generator type (`--target_type`) and a model name (`--target_name`):
+
+```bash
+garak --target_type <generator_type> --target_name <model_name>
+```
+
+### Common Generator Types (`--target_type`):
+*   `huggingface` (Hugging Face model hub)
+*   `openai` (OpenAI completions/chat endpoints)
+*   `ollama` (Local model served via Ollama)
+*   `replicate` (Hosted Replicate models)
+*   `octoai` (Hosted OctoAI models)
+
+---
+
+## 4. Practical Examples
+
+### A. Scan a local model served via Ollama
+Ensure Ollama is running and the model is pulled locally:
+```bash
+garak --target_type ollama --target_name mistral
+```
+
+### B. Scan a Hugging Face model locally
+Downloads and runs the model locally using the Hugging Face transformers pipeline:
+```bash
+garak --target_type huggingface --target_name gpt2
+```
+
+### C. Scan an OpenAI model
+Ensure your OpenAI API key is exported:
+```bash
+export OPENAI_API_KEY="sk-..."
+garak --target_type openai --target_name gpt-4o-mini
+```
+
+---
+
+## 5. Advanced Scan Options
+
+### 1. Run specific Probes (vulnerability tests)
+Instead of running all default probes (which can take a long time), you can specify a comma-separated list of probes:
+```bash
+# Run only DAN and Skeleton Key jailbreak probes
+garak --target_type ollama --target_name mistral --probes dan,skeleton
+```
+
+To see all available probes:
+```bash
+garak --list_probes
+```
+
+### 2. Output and Reports
+`garak` creates a detailed report in HTML and JSON format inside the `garak_runs/` directory by default. You can control the report naming:
+```bash
+garak --target_type huggingface --target_name gpt2 --report_prefix my_baseline_scan
+```
+
+### 3. Help and Discovery
+*   List all supported model providers:
+    ```bash
+    garak --list_generators
+    ```
+*   List all available probes:
+    ```bash
+    garak --list_probes
+    ```
+*   List all available detectors (evaluators):
+    ```bash
+    garak --list_detectors
+    ```

@@ -1,0 +1,36 @@
+# MITRE ATLAS™ Framework Summary
+
+---
+
+## 1. Overview
+MITRE ATLAS™ (Adversarial Threat Landscape for Artificial-Intelligence Systems) is a globally accessible knowledge base of adversary tactics, techniques, and case studies targeting AI systems. Formatted similarly to the MITRE ATT&CK framework, it focuses on the unique security vulnerabilities of Artificial Intelligence and Machine Learning models.
+
+---
+
+## 2. The 16 Adversarial Tactics
+Tactics represent the "why" or the primary goal of the adversary at any given phase of an attack lifecycle. The matrix consists of:
+
+1.  **Reconnaissance:** Gathering information about the target AI system, datasets, APIs, and model architecture.
+2.  **Resource Development:** Building tools, purchasing infrastructure, or configuring accounts for the attack.
+3.  **Initial Access:** Establishing a foothold in the target network or system environment.
+4.  **AI Model Access:** Gaining access to the target model (e.g., black-box API access or white-box weights).
+5.  **Execution:** Running malicious code or prompt payloads on target systems.
+6.  **Persistence:** Maintaining access to the target systems or model servers.
+7.  **Privilege Escalation:** Gaining higher-level permissions to bypass model controls or access private data.
+8.  **Defense Evasion:** Bypassing security filters, input guards (like Llama Guard), or toxicity detectors.
+9.  **Credential Access:** Stealing authentication tokens, database passwords, or API keys.
+10. **Discovery:** Exploring the system environment (e.g., querying databases, listing APIs, discovering model configs).
+11. **Lateral Movement:** Accessing other nodes or services connected to the LLM agent or server.
+12. **Collection:** Gathering sensitive data (e.g., PII from a RAG database or proprietary model weights).
+13. **AI Attack Staging:** Formatting and poisoning datasets, training surrogate models, or crafting specific prompt injection scripts.
+14. **Command and Control:** Establishing communication channels to remotely control execution or exfiltrate data.
+15. **Exfiltration:** Stealing sensitive context, chat history, or internal database records.
+16. **Impact:** Causing disruption, model degradation, misaligned outputs, or resource exhaustion.
+
+---
+
+## 3. Relevancy to NL-to-SQL / Multi-Tenant RLS Architectures
+*   **Initial Access & AI Model Access:** Black-box access to the LLM's natural language interface.
+*   **Privilege Escalation:** Exploiting failures in Row-Level Security (RLS) to access data of other tenants.
+*   **Defense Evasion:** Evading prompt injection detectors (like Llama Guard) to send malicious commands.
+*   **Impact:** Running heavy queries that exhaust DB connection pools (Unbounded Consumption / Denial of Service).

@@ -1,0 +1,118 @@
+# Promptfoo Red Teaming & Configuration Documentation
+
+---
+
+## 1. promptfooconfig.yaml Structure & Remote Generation Flag
+
+### PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION Flag
+By default, Promptfoo may use hosted, remote services to generate high-quality, diverse adversarial test cases for red teaming. Setting `PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION=true` disables these remote generation paths, forcing the tool to rely on local generation instead.
+*   **Local Fallback:** Falls back to using your configured local model (e.g., via your OpenAI API key or a local Ollama/vLLM instance) to generate attack inputs.
+*   **Target Calls:** Actual target/provider test requests are still made.
+*   **Quality Trade-off:** Quality of local generation depends heavily on the model you have configured locally.
+
+### Config YAML Example Structure (from red-team docs)
+```yaml
+# Example Configuration
+targets:
+  - id: openai:chat:gpt-4o
+    config:
+      temperature: 0.0
+      max_tokens: 512
+
+redteam:
+  # The model that generates the adversarial test cases (if remote generation is disabled)
+  provider: openai:chat:gpt-4o
+  
+  # Plugins representing different threat categories or guidelines
+  plugins:
+    - harmful:privacy
+    - pii:direct
+    - owasp:llm:01  # Target specific OWASP category (Prompt Injection)
+    - owasp:llm:02  # Target specific OWASP category (Sensitive Info Disclosure)
+    
+  # Strategies to orchestrate how payloads are sent to the target
+  strategies:
+    - jailbreak:meta  # Single-turn strategic taxonomy builder
+    - jailbreak:hydra  # Multi-turn adaptive conversation with persistent memory
+    - crescendo        # Multi-turn gradual escalation
+```
+
+---
+
+## 2. Red Teaming Strategies (Crescendo, Hydra, GOAT, Meta)
+
+### Meta-Agent Jailbreaks (jailbreak:meta)
+*   **Type:** Dynamic (Single-Turn)
+*   **Description:** Builds custom attack taxonomies and learns from all attempts using persistent strategic memory to choose which attack types work against your specific target.
+*   **ASR Increase:** 70-90%
+
+### Hydra Multi-turn (jailbreak:hydra)
+*   **Type:** Conversational (Multi-turn)
+*   **Description:** Adaptive multi-turn jailbreak agent that pivots across branches with persistent scan-wide memory to uncover hidden vulnerabilities.
+
+### Crescendo (crescendo)
+*   **Type:** Conversational (Multi-turn)
+*   **Description:** Gradually escalates prompt harm over multiple turns while using backtracking to optimize attack paths. 
+*   **ASR Increase:** 70-90%
+
+### GOAT (goat)
+*   **Type:** Conversational (Multi-turn)
+*   **Description:** Generative Offensive Agent Tester. Uses a Generative Offensive Agent Tester to dynamically generate multi-turn conversations.
+*   **ASR Increase:** 70-90%
+
+---
+
+## 3. OWASP LLM Top 10 Targeting
+
+To test specifically for OWASP LLM Top 10 vulnerabilities, Promptfoo supports plugins of the form `owasp:llm:<category>`, where `<category>` is a 2-digit number from `01` to `10`:
+*   `owasp:llm:01` (Prompt Injection)
+*   `owasp:llm:02` (Sensitive Information Disclosure)
+*   `owasp:llm:03` (Supply Chain Vulnerabilities)
+*   `owasp:llm:04` (Data and Model Poisoning)
+*   `owasp:llm:05` (Improper Output Handling)
+*   `owasp:llm:06` (Excessive Agency)
+*   `owasp:llm:07` (System Prompt Leakage)
+*   `owasp:llm:08` (Vector and Embedding Weaknesses)
+*   `owasp:llm:09` (Misinformation)
+*   `owasp:llm:10` (Unbounded Consumption)
+
+Example config targeting OWASP:
+```yaml
+redteam:
+  plugins:
+    - owasp:llm:01
+    - owasp:llm:02
+    - owasp:llm:07
+```
+
+---
+
+## 4. Connecting vLLM to Promptfoo
+
+Promptfoo connects to vLLM's OpenAI-compatible server by setting `apiBaseUrl` to the `/v1` root of the vLLM server.
+
+### Example vLLM Provider Configuration:
+```yaml
+providers:
+  - id: openai:chat:qwen3-8b
+    label: vLLM qwen3-8b
+    config:
+      apiBaseUrl: http://localhost:8000/v1
+      apiKey: token-abc123
+      temperature: 0.2
+      max_tokens: 512
+```
+
+### vLLM as an LLM Judge Config:
+```yaml
+defaultTest:
+  options:
+    provider:
+      id: openai:chat:llm_judge
+      config:
+        apiBaseUrl: http://localhost:8000/v1
+        apiKey: token-abc123
+        temperature: 0
+        max_tokens: 10000
+        showThinking: false # Discard reasoning block text to ensure correct grading parsing
+```

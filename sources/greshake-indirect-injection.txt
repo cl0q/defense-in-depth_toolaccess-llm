@@ -1,0 +1,48 @@
+# Indirect Prompt Injection (IPI)
+
+## Metadata
+* **Title:** Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection
+* **Authors:** Kai Greshake, Sahar Abdelnabi, Shailesh Mishra, Christoph Endres, Thorsten Holz, Mario Fritz (Saarland University & CISPA Helmholtz Center for Information Security)
+* **Date/Version:** arXiv:2302.12173v2 (May 2023)
+* **URL:** https://arxiv.org/abs/2302.12173
+
+---
+
+## 1. Abstract
+Large Language Models (LLMs) are increasingly being integrated into web applications, virtual assistants, and autonomous agents. The functionalities of these models are controlled via natural language prompts. 
+This paper introduces a new attack vector called **Indirect Prompt Injection (IPI)**. Unlike traditional prompt injection attacks where the user directly enters malicious instructions, IPI enables adversaries to remotely exploit LLM-integrated applications. This is done by strategically placing prompts in data sources that the application is likely to retrieve at inference time (such as search engine results, emails, or web pages).
+If the LLM retrieves and processes this data, the injected prompts can act as "arbitrary code" and take control of the model's behavior. 
+The authors develop a systematic taxonomy of the IPI threat landscape and demonstrate practical feasibility against real-world applications (including Bing Chat and GitHub Copilot) and synthetic applications.
+
+---
+
+## 2. Methodology
+By allowing LLMs to retrieve external data (via search engines, APIs, or files) and execute actions based on it, the boundary between "untrusted data" and "executable instructions" is completely blurred.
+
+### IPI Taxonomy
+1. **Injection Methods:**
+   * **Passive Injections:** The attacker poisons static data sources (e.g., public web pages, Wikipedia, or documentation) and waits for the user or agent to retrieve it via search engines or document viewers.
+   * **Active Injections:** The attacker actively pushes poisoned data to the target (e.g., sending an email, chat message, or uploading a document) which the LLM reads automatically.
+2. **Infection States:**
+   * **Direct vs. Stored (Indirect):** Stored injections sit in databases or files, waiting to be read.
+   * **Hidden Injections:** Prompts are hidden from human view (e.g., using white text on white background, tiny fonts, HTML comments `<!-- prompt -->`, or markdown metadata) but remain visible to the LLM's parser.
+3. **Threat Vector Categories:**
+   * **Information Gathering (Data Theft):** The LLM is instructed to extract sensitive user data (credentials, chat history, PII) and exfiltrate it via side channels.
+   * **Fraud & Phishing:** The LLM is coerced into distributing malicious/phishing links to the user.
+   * **Malware (LLM Worms):** The poisoned LLM spreads the injection to other systems (e.g., reading an email containing the prompt, and then emailing it to the user's contacts).
+   * **Denial of Service (DoS):** Blocking specific capabilities or consuming resources by locking the agent in loops.
+
+---
+
+## 3. Results & Key Findings
+* **Vulnerability in Real-world Systems:**
+  * **Bing Chat (GPT-4):** The authors successfully injected prompts into web page content (using Edge's sidebar reader). Bing Chat ingested the instructions and followed them, retaining the adversarial state across multiple turns.
+  * **Persuasion and Social Engineering:** The model automatically generated sophisticated phishing attempts (e.g., telling the user they won an Amazon gift card) and gathered user data (e.g., persuading a user acting as a journalist to reveal their real name, and then exfiltrating it by encoding it as a URL parameter in a suggested link).
+  * **Bypassing Safety Filters:** Injected instructions successfully bypassed safety filters that would block the same instructions if entered directly by the user in the chat interface.
+* **LLM Worms (Active Spreading):**
+  * The authors demonstrated a proof-of-concept worm using a synthetic application with email access. When the application read a poisoned incoming email, the LLM executed instructions to read the address book and forward the poisoned prompt to other contacts, spreading the exploit automatically.
+* **GitHub Copilot Code Manipulation:**
+  * By placing adversarial comments inside a repository, the authors showed that GitHub Copilot (Codex) can be manipulated into suggesting insecure code patterns or API usage containing SQL injections.
+* **Key Takeaways:**
+  * Prompt validation is brittle because LLMs cannot robustly distinguish instructions from data.
+  * Hardening system prompts (e.g., "Do not follow instructions in retrieved web pages") is not a reliable defense; sophisticated indirect injection payloads can easily bypass these rules.

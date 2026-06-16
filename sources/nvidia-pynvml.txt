@@ -1,0 +1,130 @@
+# NVIDIA NVML / pynvml GPU Power & Energy Measurement
+
+---
+
+## 1. Overview
+NVIDIA Management Library (NVML) is a C-based API for monitoring and managing various states of NVIDIA GPU devices. `pynvml` is the official Python binding for NVML, allowing developers to query GPU metrics directly from Python scripts.
+
+---
+
+## 2. API for GPU Power Draw (Watts)
+The `nvmlDeviceGetPowerUsage` function returns the current power draw of the GPU in **milliwatts (mW)**. You must divide this by `1000` to get the value in **Watts (W)**.
+
+### Python Example:
+```python
+import pynvml
+
+# Initialize NVML
+pynvml.nvmlInit()
+
+# Get handle for the first GPU (index 0)
+handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+
+# Retrieve current power draw in mW
+power_mw = pynvml.nvmlDeviceGetPowerUsage(handle)
+power_w = power_mw / 1000.0
+
+print(f"Current GPU Power Usage: {power_w:.2f} W")
+
+# Shutdown NVML to release resources
+pynvml.nvmlShutdown()
+```
+
+---
+
+## 3. API for Cumulative Energy Consumption (Watt-hours)
+For GPU architectures starting from **Volta** (or newer), NVML provides the `nvmlDeviceGetTotalEnergyConsumption` API, which returns the cumulative energy consumed by the GPU in **millijoules (mJ)** since the driver was last loaded.
+
+To convert millijoules (mJ) to Watt-hours (Wh):
+$$1 \text{ mJ} = 2.7777777777778 \times 10^{-7} \text{ Wh}$$
+
+### Python Example:
+```python
+import pynvml
+import time
+
+pynvml.nvmlInit()
+handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+
+# 1. Read starting cumulative energy in mJ
+start_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+start_time = time.time()
+
+# --- Perform your workload / training / inference runs here ---
+time.sleep(10) 
+
+# 2. Read ending cumulative energy in mJ
+end_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+end_time = time.time()
+
+# 3. Calculate difference and convert to Wh
+consumed_mj = end_energy - start_energy
+mj_to_wh_factor = 2.7777777777778e-7
+consumed_wh = consumed_mj * mj_to_wh_factor
+
+duration_seconds = end_time - start_time
+print(f"Workload Duration: {duration_seconds:.2f} s")
+print(f"Energy Consumed: {consumed_wh:.6f} Wh")
+
+pynvml.nvmlShutdown()
+```
+
+---
+
+## 4. Fallback for Unsupported GPUs (Power Polling / Sampling)
+If the GPU architecture is older than Volta (e.g., Pascal, Maxwell), `nvmlDeviceGetTotalEnergyConsumption` will throw a `Not Supported` error. In this case, you must poll `nvmlDeviceGetPowerUsage` at a high sampling rate (e.g., every 100ms) and perform numerical integration over time.
+
+### Python Example:
+```python
+import pynvml
+import time
+import threading
+
+class GPUEnergyTracker:
+    def __init__(self, device_index=0, sampling_rate_sec=0.1):
+        self.device_index = device_index
+        self.sampling_rate = sampling_rate_sec
+        self.total_energy_joules = 0.0
+        self.is_running = False
+        self.thread = None
+        
+    def start(self):
+        pynvml.nvmlInit()
+        self.handle = pynvml.nvmlDeviceGetHandleByIndex(self.device_index)
+        self.is_running = True
+        self.thread = threading.Thread(target=self._poll_power)
+        self.thread.start()
+        
+    def _poll_power(self):
+        last_time = time.time()
+        while self.is_running:
+            try:
+                # get power in Watts
+                power_w = pynvml.nvmlDeviceGetPowerUsage(self.handle) / 1000.0
+            except Exception:
+                power_w = 0.0
+                
+            current_time = time.time()
+            dt = current_time - last_time
+            last_time = current_time
+            
+            # Energy (Joules) = Power (Watts) * time (seconds)
+            self.total_energy_joules += power_w * dt
+            time.sleep(self.sampling_rate)
+            
+    def stop(self):
+        self.is_running = False
+        if self.thread:
+            self.thread.join()
+        pynvml.nvmlShutdown()
+        
+        # Convert Joules (Ws) to Wh (1 Wh = 3600 Joules)
+        energy_wh = self.total_energy_joules / 3600.0
+        return energy_wh
+
+# Usage:
+# tracker = GPUEnergyTracker(0, 0.1)
+# tracker.start()
+# # Run code...
+# energy_consumed_wh = tracker.stop()
+```
