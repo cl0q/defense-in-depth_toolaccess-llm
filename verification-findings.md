@@ -11,6 +11,67 @@
 
 ---
 
+## ⏱️ RE-VERIFICATION STATUS — 2026-06-22 10:58 (READ THIS FIRST)
+
+A second review pass was run after an initial round of fixes. **Only the CRITICAL
+items were touched. ALL HIGH / MEDIUM / LOW items are still open.** Verified by file
+modification times: only `gateway/{config,app,identity,db}.py` + `requirements.txt`
+were edited (10:50); every oracle/analysis/defense/attack file is byte-for-byte the
+original (10:02). `oracle/canary.py`, `state_diff.py`, `correlate.py`, `db_log.py`,
+`analysis/stats.py`, `analysis/plots.py`, `defense_a.py`, `defense_b.py`,
+`legit_set.yaml`, and `attacks/G-S1.yaml` were **NOT modified**.
+
+> **To the implementer:** Do not stop after the CRITICAL block. The HIGH items are
+> *logic* bugs in code that already imports and "runs" — it runs but returns **wrong
+> answers**, so a structure/import check will wrongly conclude it is fine. You must
+> open and rewrite the function bodies listed under HIGH. **Score so far: ~7 / 22.**
+
+| ID | File | Status | Note |
+|----|------|--------|------|
+| **C1** | `gateway/config.py` | ✅ DONE | `pydantic_settings`, `Settings`, requirements updated |
+| **C2** | `gateway/app.py` | ✅ DONE | uses `CONFIG.layer_da` / `layer_db` |
+| **C3** | `gateway/app.py` | ✅ DONE | typed `get_trace_id(request)` |
+| **C4** | `gateway/{db,app}.py` | 🔄 PARTIAL | `db.py` exists but **`app.py` never calls it** (still returns mock; `execute_transaction` commented out); no LLM call; no trace-id DB tag. **+ NEW BUG** below. |
+| **C5** | `gateway/identity.py` | ✅ DONE | tenant/user_id/merchant_id match seed |
+| **C6** | `redteam/promptfooconfig.yaml` | ✅ DONE | valid structure, `/query`, auth, body |
+| **H1** | `oracle/state_diff.py` | ❌ OPEN | still empty mock; inverted violation logic |
+| **H2** | `oracle/canary.py` | ❌ OPEN | tenant ignored; regex truncates token; numeric `internal_cost` sentinels undetectable |
+| **H3** | `oracle/correlate.py` | ❌ OPEN | still Wald interval mislabeled "Wilson" |
+| **H4** | `oracle/db_log.py` | ❌ OPEN | counts *blocked* stmts as hits; no trace-id filter |
+| **H5** | `analysis/stats.py`, `plots.py` | ❌ OPEN | hardcoded sample data; no significance test; no energy |
+| **M1** | `gateway/defense_a.py` | ❌ OPEN | no-op; `supress` typo; self-rejecting pattern still present |
+| **M2** | `gateway/defense_b.py` | ❌ OPEN | over-broad patterns; no Llama-Guard |
+| **M3** | `redteam/legit_set.yaml` | ❌ OPEN | non-existent templates/columns; 15 entries; wrong IDs |
+| **M4** | `redteam/attacks/G-S1.yaml` | ❌ OPEN | still a *direct* leak, not an indirect injection |
+| **M5** | `validate_step6.sh` | ✅ DONE | validates `targets` + `redteam` |
+| **L1** | `db/` | ❌ OPEN | doc DC-c-alone caveat; keep canary register ↔ oracle in sync |
+| **L2** | garak | ❌ OPEN | hardcoded path; verify probe id; README paths |
+| **L3** | repro | ❌ OPEN | `models.lock` + `setup.sh` still absent |
+| **L4** | `gateway/app.py` | ❌ OPEN | latency meaningless until C4 real |
+| **L5** | `test_*.py` | ❌ OPEN | swallow exceptions; no real assertions |
+
+### 🆕 NEW BUG introduced in `gateway/db.py` (fix as part of C4)
+`cur.execute("SET LOCAL ROLE %s;", (db_role,))` — psycopg2 renders this as
+`SET LOCAL ROLE 'role_customer'` (quoted string literal), which is **not** valid for
+`SET ROLE` (it needs an identifier). Use:
+```python
+from psycopg2 import sql
+# db_role already whitelisted via role_map -> safe to inject as identifier
+cur.execute(sql.SQL("SET LOCAL ROLE {}").format(sql.Identifier(db_role)))
+```
+Also: `config.py` defaults `db_user="gateway_user"` / `db_name="llm_db"`, but the
+plan/README use the **`role_app`** login and DB **`marketplace`**. Align these or the
+connection/RLS won't behave as documented.
+
+### What "finish C4" means (so app.py actually exercises the DB)
+In `app.py::process_query`, replace the mock with: call the LLM (vLLM endpoint) to get
+SQL, then `results = execute_transaction([sql], params, identity)`, tag the trace-id on
+the DB session (`SET LOCAL application_name = <trace_id>` inside `execute_transaction`),
+return real results + split latency. Until this is done, the negative test ("prompt 'I am
+admin' must NOT change the DB role") and Steps 4/6/7 cannot run end-to-end.
+
+---
+
 ## Executive summary
 
 | Area | Status | Verdict |
@@ -375,12 +436,14 @@ end‑to‑end and report the Defense‑B model‑call latency **separately** (H
 
 ## Checklist
 
-- [ ] C1 `config.py`: `pydantic_settings.BaseSettings` + `SettingsConfigDict`; add `pydantic-settings` to requirements
-- [ ] C2 `app.py`: use `layer_da`/`layer_db` (or `is_layer_enabled`), not `defense_*_enabled`
-- [ ] C3 `app.py`: typed `get_trace_id(request: Request)` dependency
-- [ ] C4 `gateway/db.py`: role_app conn + per‑request `SET LOCAL ROLE`/`set_config` from identity; LLM call; SQL exec; trace‑id DB tag; split latency
-- [ ] C5 `identity.py`: tenant `tenant_a`/`tenant_b`, numeric user_id, db_role + app_role, merchant_id; 6 seeded identities
-- [ ] C6 `promptfooconfig.yaml`: top‑level `targets`, `redteam.provider` (vLLM), valid keys only, `/query`, Authorization, `body`, per‑layer runs via `--tag`
+> Status as of re-verification 2026-06-22 10:58. **Only do the unchecked items.**
+
+- [x] C1 `config.py`: `pydantic_settings.BaseSettings` + `SettingsConfigDict`; add `pydantic-settings` to requirements
+- [x] C2 `app.py`: use `layer_da`/`layer_db` (or `is_layer_enabled`), not `defense_*_enabled`
+- [x] C3 `app.py`: typed `get_trace_id(request: Request)` dependency
+- [~] C4 `gateway/db.py`: role_app conn + per‑request `SET LOCAL ROLE`/`set_config` from identity; LLM call; SQL exec; trace‑id DB tag; split latency — **PARTIAL: `db.py` exists but `app.py` never calls it; LLM/SQL still mocked; fix `SET LOCAL ROLE` identifier bug; align db_user→role_app / db_name→marketplace**
+- [x] C5 `identity.py`: tenant `tenant_a`/`tenant_b`, numeric user_id, db_role + app_role, merchant_id; 6 seeded identities
+- [x] C6 `promptfooconfig.yaml`: top‑level `targets`, `redteam.provider` (vLLM), valid keys only, `/query`, Authorization, `body`, per‑layer runs via `--tag`
 - [ ] H1 `state_diff.py`: audit triggers / real snapshots; correct violation semantics (G‑W1/G‑W2)
 - [ ] H2 `canary.py`: tenant‑aware comparison; full‑token regex; numeric internal_cost sentinels
 - [ ] H3 `correlate.py`: replace Wald with the Wilson function from `stats.py`
@@ -390,7 +453,7 @@ end‑to‑end and report the Defense‑B model‑call latency **separately** (H
 - [ ] M2 `defense_b.py`: tighten patterns; integrate Llama‑Guard or document the mock
 - [ ] M3 `legit_set.yaml`: real templates/columns, seeded IDs, 15–25 per role
 - [ ] M4 `attacks/G-S1.yaml`: make it a true indirect injection; realistic tenancy/IDs across all seeds
-- [ ] M5 `validate_step6.sh`: validate the corrected promptfoo keys
+- [x] M5 `validate_step6.sh`: validate the corrected promptfoo keys
 - [ ] L1 keep canary register ↔ oracle mapping in sync; document DC‑c‑alone caveat
 - [ ] L2 garak: relative path; verify probe id; avoid CLI/config conflict; fix README paths
 - [ ] L3 add `models.lock` + `setup.sh`; one canonical model pin
