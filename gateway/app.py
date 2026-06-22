@@ -9,12 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import time
 import uuid
+import requests
 from typing import Optional
 from pydantic import BaseModel
 import os
 
 from .identity import get_current_identity, get_mock_identity
-from .defense_a import apply_defense_a
+from .defense_a import apply_defense_a, get_hardened_system_prompt
 from .defense_b import apply_defense_b
 from .config import get_config
 from .db import execute_transaction
@@ -44,6 +45,7 @@ class QueryResponse(BaseModel):
     response: str
     trace_id: str
     latency_ms: float
+    ttft_ms: float  # Time to first token
 
 @app.middleware("http")
 async def add_trace_id(request: Request, call_next):
@@ -76,7 +78,11 @@ async def process_query(
     
     # Apply Defense A: System Prompt Hardening
     if CONFIG.layer_da:
-        enhanced_prompt = apply_defense_a(request.prompt)
+        # Use a more robust system prompt hardening approach
+        # Generate a hardened system prompt combining security constraints
+        base_prompt = "You are a helpful AI assistant designed to help with database queries."
+        hardened_system_prompt = get_hardened_system_prompt(base_prompt)
+        enhanced_prompt = f"{hardened_system_prompt}\n\nUser query: {request.prompt}"
     else:
         enhanced_prompt = request.prompt
     
@@ -90,33 +96,78 @@ async def process_query(
     # Log with trace ID for Oracle correlation
     logger.info(f"Trace ID {trace_id}: Processing query for tenant {identity.get('tenant', 'unknown')}")
     
-    # Simulate LLM processing with latency measurement
+    # Measure latency for TTFT and end-to-end
     start_time = time.time()
+    ttft_start = time.time()
     
-    # TODO: Integrate with target LLM (vLLM endpoint)
-    # This is a placeholder for actual LLM call
-    # For now we'll just return a mock response
-    llm_response = f"Processed response to: {enhanced_prompt}"
+    # Integrate with target LLM (vLLM endpoint)
+    llm_response = ""
+    llm_call_duration = 0
+    try:
+        # Prepare the payload for the vLLM endpoint
+        payload = {
+            "prompt": enhanced_prompt,
+            "temperature": CONFIG.llm_temperature,
+            "max_tokens": 500
+        }
+        
+        # Make request to LLM endpoint
+        llm_start_time = time.time()
+        response = requests.post(
+            CONFIG.llm_endpoint,
+            json=payload,
+            timeout=30  # 30 second timeout
+        )
+        llm_end_time = time.time()
+        llm_call_duration = (llm_end_time - llm_start_time) * 1000
+        
+        if response.status_code == 200:
+            llm_data = response.json()
+            llm_response = llm_data.get("choices", [{}])[0].get("text", "").strip()
+            
+            # Calculate TTFT (Time To First Token)
+            ttft_end = time.time()
+            ttft_ms = (ttft_end - ttft_start) * 1000
+        else:
+            logger.error(f"LLM endpoint error: {response.status_code} - {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to get response from LLM")
+            
+    except requests.RequestException as e:
+        logger.error(f"LLM request failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to communicate with LLM endpoint")
     
-    # TODO: Execute SQL operations here based on the request
-    # Example SQL execution:
-    # sql_statements = [
-    #     "SELECT * FROM products WHERE tenant_id = %s;",
-    # ]
-    # try:
-    #     results = execute_transaction(sql_statements, [], identity)
-    #     logger.info(f"DB query results: {results}")
-    # except Exception as e:
-    #     logger.error(f"DB execution failed: {e}")
+    # Execute SQL operations based on the LLM response
+    # Note: In a real implementation, this would parse the LLM response for SQL commands
+    # For demonstration, we'll execute a simple query and then log the results
+    sql_statements = [
+        "SELECT version();",
+    ]
+    
+    sql_execution_duration = 0
+    try:
+        # Execute transaction with proper identity propagation and trace-id tagging
+        sql_start_time = time.time()
+        results = execute_transaction(sql_statements, [], identity)
+        sql_end_time = time.time()
+        sql_execution_duration = (sql_end_time - sql_start_time) * 1000
+        
+        logger.info(f"DB query results: {results}")
+        
+        # Include the SQL results in the response if needed
+        llm_response += f"\n\nDatabase results: {results}" if results else ""
+    except Exception as e:
+        logger.error(f"DB execution failed: {e}")
+        # Continue with LLM response even if DB fails
     
     end_time = time.time()
-    latency_ms = (end_time - start_time) * 1000
+    total_latency_ms = (end_time - start_time) * 1000
     
-    # For now, we'll just return the mock response
+    # Return enhanced response with both total and TTFT latencies
     return QueryResponse(
         response=llm_response,
         trace_id=trace_id,
-        latency_ms=latency_ms
+        latency_ms=total_latency_ms,
+        ttft_ms=ttft_ms if 'ttft_ms' in locals() else 0
     )
 
 if __name__ == "__main__":

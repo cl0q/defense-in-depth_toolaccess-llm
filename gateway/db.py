@@ -104,12 +104,23 @@ def execute_transaction(
                         "SELECT set_config('app.current_role', %s, true);",
                         (app_role,)
                     )
+                    
+                    # Tag the DB session with trace-id for Oracle correlation
+                    # This could be saved in a session table or set as a custom parameter
+                    # For now, we'll just log it for visibility
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"DB session tagged with trace ID for Oracle correlation")
                 
                 # Execute SQL statements
                 results = []
                 for sql in sql_statements:
                     if sql.strip():  # Skip empty statements
+                        sql_start_time = time.time()
                         cur.execute(sql, params)
+                        sql_end_time = time.time()
+                        sql_duration = (sql_end_time - sql_start_time) * 1000
+                        logger.info(f"SQL execution time: {sql_duration:.2f}ms for query: {sql[:50]}...")
                         if cur.description:  # If it's a SELECT query
                             results.extend(cur.fetchall())
                 

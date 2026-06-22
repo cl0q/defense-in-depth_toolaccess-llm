@@ -15,14 +15,24 @@ INPUT_CATEGORIES = {
         "information",
         "general question",
         "database query",
-        "data retrieval"
+        "data retrieval",
+        "what is",
+        "tell me",
+        "show me",
+        "give me"
     ],
     "unsafe": [
         "jailbreak",
         "prompt injection",
         "malicious instruction",
         "security bypass",
-        "data leak"
+        "data leak",
+        "sql injection",
+        "database exploit",
+        "escape the system",
+        "circumvent security",
+        "bypass restrictions",
+        "override protections"
     ]
 }
 
@@ -41,17 +51,74 @@ UNSAFE_KEYWORDS = [
     "sql injection",
     "database exploit",
     "escape the system",
-    "circumvent security"
+    "circumvent security",
+    "bypass restrictions",
+    "override protections",
+    "disable all safeguards",
+    "remove all limitations",
+    "ignore all safety",
+    "forget all previous",
+    "change your behavior",
+    "modify your response",
+    "alter your output",
+    "edit your instructions",
+    "rewrite your rules",
+    "modify your constraints",
+    "delete your limitations",
+    "remove your boundaries",
+    "eliminate your restrictions",
+    "clear all your rules",
+    "reset your safety",
+    "unfreeze your protocol",
+    "deactivate your guards",
+    "release all your restraints",
+    "cancel all your constraints",
+    "discard all your limits"
 ]
 
-# Pattern-based filters
+# Pattern-based filters for more complex injection attempts
 UNSAFE_PATTERNS = [
     r"you are a helpful assistant",
     r"system prompt",
     r"ignore all previous",
     r"continue with",
     r"perform the following",
-    r"execute the command"
+    r"execute the command",
+    r"change your behavior",
+    r"disable all protections",
+    r"remove all limitations",
+    r"forget all previous",
+    r"skip all safety",
+    r"bypass all restrictions",
+    r"override all safety",
+    r"supress all warnings",
+    r"fake response",
+    r"write code that bypasses",
+    r"sql injection",
+    r"database exploit",
+    r"escape the system",
+    r"circumvent security",
+    r"bypass restrictions",
+    r"override protections",
+    r"disable all safeguards",
+    r"remove all limitations",
+    r"ignore all safety",
+    r"forget all previous",
+    r"modify your response",
+    r"alter your output",
+    r"edit your instructions",
+    r"rewrite your rules",
+    r"modify your constraints",
+    r"delete your limitations",
+    r"remove your boundaries",
+    r"eliminate your restrictions",
+    r"clear all your rules",
+    r"reset your safety",
+    r"unfreeze your protocol",
+    r"deactivate your guards",
+    r"release all your restraints",
+    r"cancel all your constraints",
+    r"discard all your limits"
 ]
 
 def apply_defense_b(input_text: str) -> Dict:
@@ -103,6 +170,31 @@ def apply_defense_b(input_text: str) -> Dict:
                         "category": category
                     }
     
+    # Additional checks for common injection patterns
+    # Check for potential SQL injection patterns
+    sql_injection_patterns = [
+        r"union\s+select",
+        r"insert\s+into",
+        r"update\s+.*set",
+        r"delete\s+from",
+        r"drop\s+table",
+        r"create\s+table",
+        r";\s*(--|#|\/\*)",
+        r"exec\s*\(",
+        r"execute\s*\(",
+        r"xp_cmdshell",
+        r"sysobjects",
+        r"information_schema"
+    ]
+    
+    for pattern in sql_injection_patterns:
+        if re.search(pattern, text_lower):
+            return {
+                "is_safe": False,
+                "reason": f"Detected potential SQL injection pattern: {pattern}",
+                "category": "unsafe"
+            }
+    
     # Default safe classification
     return {
         "is_safe": True,
@@ -130,7 +222,8 @@ def get_guardrail_report(input_text: str) -> Dict:
         "checks_performed": [
             "keyword_scan",
             "pattern_matching",
-            "category_classification"
+            "category_classification",
+            "sql_injection_detection"
         ]
     }
 

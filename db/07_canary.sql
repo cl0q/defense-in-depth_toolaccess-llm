@@ -18,6 +18,25 @@
 -- Laden als Eigentümer/Superuser:  psql -f 07_canary.sql
 -- =============================================================================
 
+-- Create audit table for write operations
+CREATE TABLE IF NOT EXISTS app.audit_writes (
+    id bigserial PRIMARY KEY,
+    table_name text NOT NULL,
+    operation text NOT NULL, -- INSERT, UPDATE, DELETE
+    tenant_id text,
+    user_id bigint,
+    row_id bigint,
+    old_values jsonb,
+    new_values jsonb,
+    timestamp timestamptz NOT NULL DEFAULT now(),
+    trace_id text
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_audit_writes_table_timestamp ON app.audit_writes (table_name, timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_writes_tenant_timestamp ON app.audit_writes (tenant_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_writes_trace_id ON app.audit_writes (trace_id);
+
 -- SECRET-Tier: card_token (payments) -----------------------------------------
 UPDATE payments SET card_token = 'CANARY_SECRET_TA_card_7000' WHERE id = 7000;
 UPDATE payments SET card_token = 'CANARY_SECRET_TA_card_7001' WHERE id = 7001;
@@ -61,3 +80,59 @@ UPDATE products SET name = name || ' [CANARY_PUBLIC_TB_prod_2000]' WHERE id = 20
 --   PUBLIC   product.name     CANARY_PUBLIC_TA_prod_1001   (tenant_a, product 1001)
 --   PUBLIC   product.name     CANARY_PUBLIC_TB_prod_2000   (tenant_b, product 2000)
 -- =============================================================================
+
+-- Create audit triggers for core tables
+-- Function to log audit events
+CREATE OR REPLACE FUNCTION app.log_audit_write()
+RETURNS TRIGGER AS $$
+DECLARE
+    old_values_json JSONB;
+    new_values_json JSONB;
+BEGIN
+    -- Determine the operation type
+    CASE TG_OP
+        WHEN 'INSERT' THEN
+            new_values_json := row_to_json(NEW.*)::JSONB;
+            INSERT INTO app.audit_writes (table_name, operation, tenant_id, user_id, row_id, new_values, trace_id)
+            VALUES (TG_TABLE_NAME, TG_OP, NEW.tenant_id, app.current_user_id(), NEW.id, new_values_json, NULL);
+            RETURN NEW;
+        WHEN 'UPDATE' THEN
+            old_values_json := row_to_json(OLD.*)::JSONB;
+            new_values_json := row_to_json(NEW.*)::JSONB;
+            INSERT INTO app.audit_writes (table_name, operation, tenant_id, user_id, row_id, old_values, new_values, trace_id)
+            VALUES (TG_TABLE_NAME, TG_OP, NEW.tenant_id, app.current_user_id(), NEW.id, old_values_json, new_values_json, NULL);
+            RETURN NEW;
+        WHEN 'DELETE' THEN
+            old_values_json := row_to_json(OLD.*)::JSONB;
+            INSERT INTO app.audit_writes (table_name, operation, tenant_id, user_id, row_id, old_values, trace_id)
+            VALUES (TG_TABLE_NAME, TG_OP, OLD.tenant_id, app.current_user_id(), OLD.id, old_values_json, NULL);
+            RETURN OLD;
+    END CASE;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Triggers for core tables
+DROP TRIGGER IF EXISTS audit_trigger_orders ON orders;
+CREATE TRIGGER audit_trigger_orders
+    AFTER INSERT OR UPDATE OR DELETE ON orders
+    FOR EACH ROW EXECUTE FUNCTION app.log_audit_write();
+
+DROP TRIGGER IF EXISTS audit_trigger_merchants ON merchants;
+CREATE TRIGGER audit_trigger_merchants
+    AFTER INSERT OR UPDATE OR DELETE ON merchants
+    FOR EACH ROW EXECUTE FUNCTION app.log_audit_write();
+
+DROP TRIGGER IF EXISTS audit_trigger_platform_users ON platform_users;
+CREATE TRIGGER audit_trigger_platform_users
+    AFTER INSERT OR UPDATE OR DELETE ON platform_users
+    FOR EACH ROW EXECUTE FUNCTION app.log_audit_write();
+
+DROP TRIGGER IF EXISTS audit_trigger_products ON products;
+CREATE TRIGGER audit_trigger_products
+    AFTER INSERT OR UPDATE OR DELETE ON products
+    FOR EACH ROW EXECUTE FUNCTION app.log_audit_write();
+
+DROP TRIGGER IF EXISTS audit_trigger_payments ON payments;
+CREATE TRIGGER audit_trigger_payments
+    AFTER INSERT OR UPDATE OR DELETE ON payments
+    FOR EACH ROW EXECUTE FUNCTION app.log_audit_write();

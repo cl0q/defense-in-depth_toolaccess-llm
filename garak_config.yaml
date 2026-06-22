@@ -2,7 +2,8 @@
 # Diese Konfiguration wird für die Nullmessung verwendet
 
 probes:
-  - llm-jailbreak
+  - dan
+  - promptinject
 
 model_type: huggingface
 model_name_or_path: Qwen/Qwen3-14B
@@ -11,3 +12,6 @@ output_dir: ./garak_results
 
 # Set seeds for reproducibility
 seed: 42
+
+# Quantization settings
+quantize: 4bit

@@ -27,7 +27,7 @@ fi
 
 # Validate YAML structure
 echo "2. Validating YAML structure..."
-python -c "
+python3 -c "
 import yaml
 try:
     with open('redteam/promptfooconfig.yaml', 'r') as f:
@@ -52,6 +52,25 @@ try:
             else:
                 print(f'   ⚠ redteam.{section} missing')
                 
+    # Check promptfoo keys for correct validation
+    if 'redteam' in config and 'plugins' in config['redteam']:
+        plugins = config['redteam']['plugins']
+        expected_plugins = ['owasp:llm:01', 'owasp:llm:02', 'owasp:llm:05', 'owasp:llm:06']
+        for plugin in expected_plugins:
+            if plugin in plugins:
+                print(f'   ✓ Plugin {plugin} found')
+            else:
+                print(f'   ⚠ Plugin {plugin} missing')
+                
+    if 'redteam' in config and 'strategies' in config['redteam']:
+        strategies = config['redteam']['strategies']
+        expected_strategies = ['jailbreak:meta', 'jailbreak:hydra', 'crescendo']
+        for strategy in expected_strategies:
+            if strategy in strategies:
+                print(f'   ✓ Strategy {strategy} found')
+            else:
+                print(f'   ⚠ Strategy {strategy} missing')
+                
 except Exception as e:
     print(f'   ✗ promptfooconfig.yaml validation failed: {e}')
 "
@@ -62,7 +81,7 @@ for file in redteam/attacks/G-*.yaml; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
         echo "   ✓ $filename"
-        python -c "
+        python3 -c "
 import yaml
 try:
     with open('$file', 'r') as f:
@@ -70,8 +89,17 @@ try:
     if isinstance(attacks, list) and len(attacks) > 0:
         print('   ✓ File contains valid attack list')
         for i, attack in enumerate(attacks):
-            if 'description' in attack and 'prompt' in attack:
+            if 'description' in attack and 'prompt' in attack and 'expected_result' in attack:
                 print(f'   ✓ Attack {i+1} has required fields')
+                # Check for additional required fields
+                if 'tags' in attack:
+                    print(f'   ✓ Attack {i+1} has tags')
+                else:
+                    print(f'   ⚠ Attack {i+1} missing tags')
+                if 'role' in attack:
+                    print(f'   ✓ Attack {i+1} has role')
+                else:
+                    print(f'   ⚠ Attack {i+1} missing role')
             else:
                 print(f'   ⚠ Attack {i+1} missing required fields')
     else:
@@ -88,3 +116,4 @@ echo "   Attacker: HTTP endpoint (vLLM)"
 echo "   Plugins: OWASP LLM vulnerabilities"
 echo "   Strategies: Crescendo, Hydra, Meta"
 echo "   Configurations: Layer-specific runs with --tag config=..."
+echo "   Expected Promptfoo Keys: provider, plugins, strategies"

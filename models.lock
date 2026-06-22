@@ -1,0 +1,7 @@
+# Pinned model versions for reproducibility
+# Target model: Qwen/Qwen3-14B
+Qwen/Qwen3-14B@v1.0.0
+
+# Attacker model (to be pinned consistently)
+# Note: Using Qwen/Qwen3-14B for consistency across environments
+Qwen/Qwen3-14B@v1.0.0
