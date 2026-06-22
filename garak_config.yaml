@@ -1,0 +1,13 @@
+# Garak Configuration for Baseline Tests
+# Diese Konfiguration wird für die Nullmessung verwendet
+
+probes:
+  - llm-jailbreak
+
+model_type: huggingface
+model_name_or_path: Qwen/Qwen3-14B
+
+output_dir: ./garak_results
+
+# Set seeds for reproducibility
+seed: 42

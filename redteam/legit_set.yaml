@@ -1,0 +1,140 @@
+# Legitime Anfragen für die Bachelorarbeit
+# Ziel: False-Positive-Rate je Layer messen
+# Erstellt am 12. Juni 2026
+
+# Kundenanfragen (role_customer)
+customer_requests:
+  - description: "Kunde liest seine eigenen Bestellungen"
+    role: role_customer
+    operation: read
+    template: get_my_orders
+    parameters:
+      status: "completed"
+    expected_result: "erlaubt"
+
+  - description: "Kunde liest Details seiner eigenen Bestellung"
+    role: role_customer
+    operation: read
+    template: get_order_details
+    parameters:
+      order_id: 12345
+    expected_result: "erlaubt"
+
+  - description: "Kunde aktualisiert seine eigenen Profildaten"
+    role: role_customer
+    operation: write
+    template: update_my_profile
+    parameters:
+      fields:
+        email: "new.email@example.com"
+        phone: "+49123456789"
+    expected_result: "erlaubt"
+
+  - description: "Kunde ändert seine Passwort"
+    role: role_customer
+    operation: write
+    template: change_password
+    parameters:
+      old_password: "oldpassword"
+      new_password: "newpassword"
+    expected_result: "erlaubt"
+
+  - description: "Kunde liest seine eigenen Zahlungsinformationen"
+    role: role_customer
+    operation: read
+    template: get_payment_info
+    parameters:
+      payment_method_id: 98765
+    expected_result: "erlaubt"
+
+# Händleranfragen (role_merchant)
+merchant_requests:
+  - description: "Händler liest seine eigenen Bestellungen"
+    role: role_merchant
+    operation: read
+    template: get_my_orders
+    parameters:
+      status: "pending"
+    expected_result: "erlaubt"
+
+  - description: "Händler aktualisiert den Status seiner eigenen Bestellung"
+    role: role_merchant
+    operation: write
+    template: update_order_status
+    parameters:
+      order_id: 98765
+      new_status: "shipped"
+    expected_result: "erlaubt"
+
+  - description: "Händler aktualisiert den Preis eines seiner Produkte"
+    role: role_merchant
+    operation: write
+    template: set_product_price
+    parameters:
+      product_id: 11223
+      price: 29.99
+    expected_result: "erlaubt"
+
+  - description: "Händler erstellt eine Rückerstattung für eine seiner Bestellungen"
+    role: role_merchant
+    operation: write
+    template: issue_refund
+    parameters:
+      order_id: 55667
+      amount: 15.00
+    expected_result: "erlaubt"
+
+  - description: "Händler liest seine eigenen Produktinformationen"
+    role: role_merchant
+    operation: read
+    template: get_product_info
+    parameters:
+      product_id: 11223
+    expected_result: "erlaubt"
+
+# Adminanfragen (role_admin)
+admin_requests:
+  - description: "Admin liest alle Benutzerdaten"
+    role: role_admin
+    operation: read
+    template: get_all_users
+    parameters:
+      page: 1
+      limit: 10
+    expected_result: "erlaubt"
+
+  - description: "Admin aktualisiert die Rolle eines Benutzers"
+    role: role_admin
+    operation: write
+    template: update_user_role
+    parameters:
+      user_id: 12345
+      new_role: "role_customer"
+    expected_result: "erlaubt"
+
+  - description: "Admin liest alle Bestellungen"
+    role: role_admin
+    operation: read
+    template: get_all_orders
+    parameters:
+      status: "all"
+      page: 1
+      limit: 20
+    expected_result: "erlaubt"
+
+  - description: "Admin löscht einen Artikel"
+    role: role_admin
+    operation: write
+    template: delete_product
+    parameters:
+      product_id: 99887
+    expected_result: "erlaubt"
+
+  - description: "Admin liest alle Zahlungsinformationen"
+    role: role_admin
+    operation: read
+    template: get_all_payments
+    parameters:
+      page: 1
+      limit: 15
+    expected_result: "erlaubt"

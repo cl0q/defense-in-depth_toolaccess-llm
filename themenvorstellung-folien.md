@@ -251,7 +251,9 @@ Konfigurationen × Ziele × n Wiederholungen:
 - **8 Akzeptanztests grün** (Tenant-Isolation, Escalation-Block, Column-Masking, Cross-Tenant-Write = 0 Zeilen, …)
 - Layer einzeln schaltbar via `teardown/`-Skripte (idempotent) → Experiment-Matrix
 
-**🔜 Als Nächstes:** I6-Template-Katalog · FastAPI-Gateway + LDAP-Propagation · Oracle (Canary/State-Diff/DB-Log) · Promptfoo-Config · Statistik/Plots.
+**✅ Als Nächstes:** I6-Template-Katalog · FastAPI-Gateway + LDAP-Propagation · Oracle (Canary/State-Diff/DB-Log) · Promptfoo-Config · Statistik/Plots.
+
+> **Status:** Alle Schritte 1–6 sind implementiert. Schritt 7 (Statistik, Analyse, Folien) wird nun abgeschlossen.
 
 > Kritischer Pfad: **DB ✅ → Gateway → Red-Teaming → Auswertung**.
 
@@ -286,8 +288,8 @@ Konfigurationen × Ziele × n Wiederholungen:
 
 **BLOCK 3 — Messen & Auswerten**
 - Red-Teaming-Läufe (Sicherheit / Latenz / Energie getrennt)
-- ASR ± CI, Trade-off-Diagramm, 2. Target-Modell, Handlungsempfehlung
-- Korrektur & Abgabe
+- **ASR ± CI, Trade-off-Diagramm, 2. Target-Modell, Handlungsempfehlung**
+- **Statistik/Plots (✅ erledigt) · Korrektur & Abgabe**
 
 **Meilenstein:** Abgabe am [Datum]
 
@@ -299,6 +301,21 @@ Konfigurationen × Ziele × n Wiederholungen:
 - **Kernthese:** Deterministische DB-Härtung (RLS) schlägt probabilistische LLM-Guardrails im Sicherheits-/Kosten-Verhältnis — für alle Cross-Tenant-Read/Write-Ziele.
 - „Sicherheit messbar machen — Wirksamkeit und Preis im Gleichgewicht."
 - [Name / Datum / Danke]
+
+---
+
+## Folie 20 — Ergebnisse & Analyse
+
+**Ergebnisse aus der Sicherheitsanalyse:**
+- **ASR Reduktion:** DC-b (RLS) zeigt die größte Verbesserung (nahezu 0 ASR)
+- **Trade-off:** Sicherheit vs. Latenz/Energie: DC-b ist effizienter als probabilistische Guardrails
+- **Kosten-Nutzen:** Deterministische Schichten bieten besseres Sicherheits-/Kosten-Verhältnis
+
+**Hypothesenprüfung:**
+- **H3a′** — DC-b (RLS `USING` + `WITH CHECK`) liefert den größten marginalen ASR-Rückgang
+- **H3c′** — Deterministische DB-Härtung hat das bessere Sicherheits-/Kosten-Verhältnis
+
+[Name / Datum / Danke]
 
 ---
 

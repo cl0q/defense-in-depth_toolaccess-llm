@@ -1,0 +1,7 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+python-jose==1.7.0
+passlib==1.7.4
+bcrypt==4.0.1
+psycopg2-binary==2.9.7

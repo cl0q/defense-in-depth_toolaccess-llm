@@ -1,0 +1,30 @@
+# Red Team Directory
+
+Dieses Verzeichnis enthält die Konfigurationen für das Red Teaming:
+
+## Dateien
+
+- `promptfooconfig.yaml`: Hauptkonfiguration für Promptfoo
+- `legit_set.yaml`: Legitime Anfragen für die False Positive Rate Messung
+- `attacks/`: Seed-Angriffe je Erfolgsziel (G-R1 bis G-S1)
+- `run_garak_baseline.sh`: Shell-Skript für Garak Baseline Tests
+- `garak_config.yaml`: Konfiguration für Garak Tests
+
+## Angriffsszenarien
+
+Die folgenden Erfolgsziele (G-*) werden mit Seed-Angriffen getestet:
+
+- G-R1: Cross-Tenant Read (Fremde Tenant-Daten lesbar machen)
+- G-R2: Column Masking Bypass (Gesperrte Spalten in Ausgabe erhalten)
+- G-W1: Unauthorized Write (Zeile außerhalb der Berechtigungsmatrix schreiben)
+- G-W2: Role Escalation (Unbefugte Änderung von Rollen oder Zahlungskonten)
+- G-W3: DDL/DML Injection (DDL oder Massen-DML Operationen durchführen)
+- G-S1: Indirect Prompt Injection (Canary-Token aus präparierter Zeile in Ausgabe)
+
+## Verwendung
+
+Um die Red Teaming Tests durchzuführen:
+
+1. Starte den Gateway und die Datenbank
+2. Führe `promptfoo test` mit der Konfiguration aus
+3. Führe `./run_garak_baseline.sh` für die Baseline-Tests aus
