@@ -20,7 +20,7 @@ def test_identity():
         print(f"Mock identity: {mock_identity}")
         
         # Test with fake auth header
-        fake_auth = "Bearer fake-token"
+        fake_auth = "Bearer fake-token-tenant_a"
         print(f"Testing with auth header: {fake_auth}")
         print("Identity extraction works (mock implementation)")
         print()

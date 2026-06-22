@@ -35,13 +35,23 @@ try:
     print('   ✓ promptfooconfig.yaml is valid YAML')
     
     # Check required sections
-    required_sections = ['targets', 'attackers', 'plugins', 'strategies', 'configs']
+    required_sections = ['targets', 'redteam']
     for section in required_sections:
         if section in config:
             print(f'   ✓ {section} section found')
         else:
             print(f'   ⚠ {section} section missing')
             
+    # Check redteam subsections
+    if 'redteam' in config:
+        redteam = config['redteam']
+        redteam_required = ['provider', 'plugins', 'strategies']
+        for section in redteam_required:
+            if section in redteam:
+                print(f'   ✓ redteam.{section} found')
+            else:
+                print(f'   ⚠ redteam.{section} missing')
+                
 except Exception as e:
     print(f'   ✗ promptfooconfig.yaml validation failed: {e}')
 "
@@ -77,5 +87,4 @@ echo "   Target: HTTP endpoint (Gateway)"
 echo "   Attacker: HTTP endpoint (vLLM)"
 echo "   Plugins: OWASP LLM vulnerabilities"
 echo "   Strategies: Crescendo, Hydra, Meta"
-echo "   Configurations: All defense layers (D0-I6)"
-echo "   Attack Types: All success goals (G-R1-G-S1)"
+echo "   Configurations: Layer-specific runs with --tag config=..."

@@ -13,10 +13,11 @@ from typing import Optional
 from pydantic import BaseModel
 import os
 
-from .identity import get_current_identity
+from .identity import get_current_identity, get_mock_identity
 from .defense_a import apply_defense_a
 from .defense_b import apply_defense_b
 from .config import get_config
+from .db import execute_transaction
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -59,11 +60,14 @@ async def add_trace_id(request: Request, call_next):
     
     return response
 
+def get_trace_id(request: Request) -> str:
+    return getattr(request.state, "trace_id", "")
+
 @app.post("/query", response_model=QueryResponse)
 async def process_query(
     request: QueryRequest,
     identity: dict = Depends(get_current_identity),
-    trace_id: str = Depends(lambda request: getattr(request.state, 'trace_id', None))
+    trace_id: str = Depends(get_trace_id)
 ):
     """
     Main endpoint for processing queries through the LLM with security defenses
@@ -71,13 +75,13 @@ async def process_query(
     logger.info(f"Processing query for tenant {identity.get('tenant', 'unknown')}")
     
     # Apply Defense A: System Prompt Hardening
-    if CONFIG.defense_a_enabled:
+    if CONFIG.layer_da:
         enhanced_prompt = apply_defense_a(request.prompt)
     else:
         enhanced_prompt = request.prompt
     
     # Apply Defense B: Input Guardrail
-    if CONFIG.defense_b_enabled:
+    if CONFIG.layer_db:
         # This would integrate with LlamaGuard or similar
         guardrail_result = apply_defense_b(enhanced_prompt)
         if not guardrail_result["is_safe"]:
@@ -91,13 +95,24 @@ async def process_query(
     
     # TODO: Integrate with target LLM (vLLM endpoint)
     # This is a placeholder for actual LLM call
+    # For now we'll just return a mock response
     llm_response = f"Processed response to: {enhanced_prompt}"
+    
+    # TODO: Execute SQL operations here based on the request
+    # Example SQL execution:
+    # sql_statements = [
+    #     "SELECT * FROM products WHERE tenant_id = %s;",
+    # ]
+    # try:
+    #     results = execute_transaction(sql_statements, [], identity)
+    #     logger.info(f"DB query results: {results}")
+    # except Exception as e:
+    #     logger.error(f"DB execution failed: {e}")
     
     end_time = time.time()
     latency_ms = (end_time - start_time) * 1000
     
-    # TODO: Execute SQL operations here based on the request
-    
+    # For now, we'll just return the mock response
     return QueryResponse(
         response=llm_response,
         trace_id=trace_id,

@@ -16,6 +16,7 @@ class Identity(BaseModel):
     user_id: str
     tenant: str
     role: str
+    merchant_id: Optional[str] = None
 
 # Mock LDAP/AD lookup function - replace with actual implementation
 def mock_ldap_lookup(auth_header: str) -> Optional[Dict]:
@@ -33,11 +34,34 @@ def mock_ldap_lookup(auth_header: str) -> Optional[Dict]:
         return None
         
     # Mock identity data - this would come from LDAP/AD or auth service
-    return {
-        "user_id": "user123",
-        "tenant": "tenantA",
-        "role": "role_customer"
-    }
+    # Based on the seed data in 06_seed.sql, we have:
+    # Users: 1=admin, 10=merchant_a, 11=customer_a, 12=customer_a, 20=merchant_b, 21=customer_b
+    # Tenants: tenant_a, tenant_b
+    # Roles: admin, merchant, customer
+    
+    # Return different mock identities for different tenants/roles
+    if "tenant_a" in auth_header:
+        return {
+            "user_id": "11",  # customer_a
+            "tenant": "tenant_a",
+            "role": "customer",
+            "merchant_id": None
+        }
+    elif "tenant_b" in auth_header:
+        return {
+            "user_id": "21",  # customer_b
+            "tenant": "tenant_b",
+            "role": "customer",
+            "merchant_id": None
+        }
+    else:
+        # Default to tenant_a customer
+        return {
+            "user_id": "11",  # customer_a
+            "tenant": "tenant_a",
+            "role": "customer",
+            "merchant_id": None
+        }
 
 def get_current_identity(
     authorization: Optional[str] = Header(None)
@@ -65,12 +89,53 @@ def get_current_identity(
     return identity_data
 
 # Alternative method for testing without auth
-def get_mock_identity() -> Dict:
+def get_mock_identity(tenant: str = "tenant_a", role: str = "customer") -> Dict:
     """
     For development/testing - returns hardcoded mock identity
     """
+    # Map tenant and role to actual seeded user IDs
+    if tenant == "tenant_a":
+        if role == "customer":
+            return {
+                "user_id": "11",  # customer_a
+                "tenant": "tenant_a",
+                "role": "customer",
+                "merchant_id": None
+            }
+        elif role == "merchant":
+            return {
+                "user_id": "10",  # merchant_a
+                "tenant": "tenant_a",
+                "role": "merchant",
+                "merchant_id": "100"
+            }
+        elif role == "admin":
+            return {
+                "user_id": "1",  # admin
+                "tenant": "",
+                "role": "admin",
+                "merchant_id": None
+            }
+    elif tenant == "tenant_b":
+        if role == "customer":
+            return {
+                "user_id": "21",  # customer_b
+                "tenant": "tenant_b",
+                "role": "customer",
+                "merchant_id": None
+            }
+        elif role == "merchant":
+            return {
+                "user_id": "20",  # merchant_b
+                "tenant": "tenant_b",
+                "role": "merchant",
+                "merchant_id": "200"
+            }
+    
+    # Default fallback
     return {
-        "user_id": "testuser",
-        "tenant": "tenantA", 
-        "role": "role_customer"
+        "user_id": "11",
+        "tenant": "tenant_a",
+        "role": "customer",
+        "merchant_id": None
     }

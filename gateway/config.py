@@ -3,10 +3,10 @@ Configuration module for LLM Gateway.
 Manages the different security layers (D0, DA, DB, DC-*, I6) and their settings.
 """
 
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, List
 
-class Config(BaseSettings):
+class Settings(BaseSettings):
     # Security Layer Configuration
     layer_d0: bool = True  # No defenses
     layer_da: bool = True  # Defense A (System Prompt)
@@ -35,12 +35,10 @@ class Config(BaseSettings):
     # Logging Settings
     log_level: str = "INFO"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 # Global configuration instance
-config = Config()
+config = Settings()
 
 def get_config():
     """
