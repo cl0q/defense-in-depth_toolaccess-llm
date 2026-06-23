@@ -1,662 +1,278 @@
-# Legitime Anfragen für die Bachelorarbeit
-# Ziel: False-Positive-Rate je Layer messen
-# Erstellt am 12. Juni 2026
+# Legitimate request set for false-positive-rate measurement.
+# All scenarios are executable against gateway/templates.py.
 
-# Kundenanfragen (role_customer)
 customer_requests:
-  - description: "Kunde liest seine eigenen Bestellungen"
+  - description: "Customer lists recent orders"
     role: role_customer
     operation: read
     template: get_my_orders
-    parameters:
-      status: "completed"
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Details seiner eigenen Bestellung"
-    role: role_customer
-    operation: read
-    template: get_order_details
-    parameters:
-      order_id: 5000
-    expected_result: "erlaubt"
-
-  - description: "Kunde aktualisiert seine eigenen Profildaten"
-    role: role_customer
-    operation: write
-    template: update_my_profile
-    parameters:
-      fields:
-        email: "new.email@example.com"
-        phone: "+49123456789"
-    expected_result: "erlaubt"
-
-  - description: "Kunde ändert seine Passwort"
-    role: role_customer
-    operation: write
-    template: change_password
-    parameters:
-      old_password: "oldpassword"
-      new_password: "newpassword"
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine eigenen Zahlungsinformationen"
-    role: role_customer
-    operation: read
-    template: get_payment_info
-    parameters:
-      payment_method_id: 7000
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Details seiner anderen Bestellung"
-    role: role_customer
-    operation: read
-    template: get_order_details
-    parameters:
-      order_id: 5001
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Details einer Zahlung"
-    role: role_customer
-    operation: read
-    template: get_payment_info
-    parameters:
-      payment_method_id: 7001
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Produkte in seinem Mandanten"
-    role: role_customer
-    operation: read
-    template: get_products
-    parameters:
-      tenant_id: "tenant_a"
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest ein spezifisches Produkt"
-    role: role_customer
-    operation: read
-    template: get_product_info
-    parameters:
-      product_id: 1000
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest ein anderes spezifisches Produkt"
-    role: role_customer
-    operation: read
-    template: get_product_info
-    parameters:
-      product_id: 1001
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Bestellhistorie"
-    role: role_customer
-    operation: read
-    template: get_order_history
-    parameters:
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine eigene Kundeninformation"
-    role: role_customer
-    operation: read
-    template: get_customer_info
-    expected_result: "erlaubt"
-
-  - description: "Kunde ruft eine Bestellung mit dem Status 'paid' ab"
+    parameters: {status: null, limit: 10}
+    expected_result: "allowed"
+  - description: "Customer lists paid orders"
     role: role_customer
     operation: read
     template: get_my_orders
-    parameters:
-      status: "paid"
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seinen Bestellstatus"
-    role: role_customer
-    operation: read
-    template: get_order_status
-    parameters:
-      order_id: 5001
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Details einer Bestellung mit einem spezifischen Produktpaket"
-    role: role_customer
-    operation: read
-    template: get_order_details
-    parameters:
-      order_id: 5000
-    expected_result: "erlaubt"
-
-  - description: "Kunde aktualisiert seine E-Mail-Adresse"
-    role: role_customer
-    operation: write
-    template: update_my_profile
-    parameters:
-      fields:
-        email: "updated.customer@example.com"
-    expected_result: "erlaubt"
-
-  - description: "Kunde aktualisiert seine Telefonnummer"
-    role: role_customer
-    operation: write
-    template: update_my_profile
-    parameters:
-      fields:
-        phone: "+49987654321"
-    expected_result: "erlaubt"
-
-  - description: "Kunde ändert sein Passwort"
-    role: role_customer
-    operation: write
-    template: change_password
-    parameters:
-      old_password: "newpassword"
-      new_password: "verysecurepassword"
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine Bestellung mit einem spezifischen Produkt"
-    role: role_customer
-    operation: read
-    template: get_order_details
-    parameters:
-      order_id: 5001
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Informationen über ein spezifisches Produkt"
-    role: role_customer
-    operation: read
-    template: get_product_info
-    parameters:
-      product_id: 1000
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine Zahlungsinformationen"
-    role: role_customer
-    operation: read
-    template: get_payment_info
-    parameters:
-      payment_method_id: 7000
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine Bestellungen mit Filter nach Datum"
+    parameters: {status: "paid", limit: 10}
+    expected_result: "allowed"
+  - description: "Customer lists placed orders"
     role: role_customer
     operation: read
     template: get_my_orders
-    parameters:
-      date_from: "2026-01-01"
-      date_to: "2026-12-31"
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Bestellverlauf"
-    role: role_customer
-    operation: read
-    template: get_order_history
-    parameters:
-      offset: 0
-      limit: 5
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine Kundendaten"
-    role: role_customer
-    operation: read
-    template: get_customer_info
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest seine Bestellhistorie"
-    role: role_customer
-    operation: read
-    template: get_order_history
-    parameters:
-      limit: 5
-    expected_result: "erlaubt"
-
-  - description: "Kunde liest Informationen zur Bestellung 5000"
+    parameters: {status: "placed", limit: 10}
+    expected_result: "allowed"
+  - description: "Customer fetches order 5000"
     role: role_customer
     operation: read
     template: get_order_details
-    parameters:
-      order_id: 5000
-    expected_result: "erlaubt"
+    parameters: {order_id: 5000}
+    expected_result: "allowed"
+  - description: "Customer fetches order 5001"
+    role: role_customer
+    operation: read
+    template: get_order_details
+    parameters: {order_id: 5001}
+    expected_result: "allowed"
+  - description: "Customer fetches product 1000"
+    role: role_customer
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 1000}
+    expected_result: "allowed"
+  - description: "Customer fetches product 1001"
+    role: role_customer
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 1001}
+    expected_result: "allowed"
+  - description: "Customer fetches product 2000"
+    role: role_customer
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 2000}
+    expected_result: "allowed"
+  - description: "Customer lists one order"
+    role: role_customer
+    operation: read
+    template: get_my_orders
+    parameters: {status: null, limit: 1}
+    expected_result: "allowed"
+  - description: "Customer lists five orders"
+    role: role_customer
+    operation: read
+    template: get_my_orders
+    parameters: {status: null, limit: 5}
+    expected_result: "allowed"
+  - description: "Customer reads order details after listing"
+    role: role_customer
+    operation: read
+    template: get_order_details
+    parameters: {order_id: 5000}
+    expected_result: "allowed"
+  - description: "Customer reads order details for paid order"
+    role: role_customer
+    operation: read
+    template: get_order_details
+    parameters: {order_id: 5001}
+    expected_result: "allowed"
+  - description: "Customer reads product 1000 again"
+    role: role_customer
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 1000}
+    expected_result: "allowed"
+  - description: "Customer reads product 1001 again"
+    role: role_customer
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 1001}
+    expected_result: "allowed"
+  - description: "Customer reads order summary with status filter"
+    role: role_customer
+    operation: read
+    template: get_my_orders
+    parameters: {status: "paid", limit: 3}
+    expected_result: "allowed"
 
-# Händleranfragen (role_merchant)
 merchant_requests:
-  - description: "Händler liest seine eigenen Bestellungen"
+  - description: "Merchant lists recent orders"
     role: role_merchant
     operation: read
     template: get_my_orders
-    parameters:
-      status: "pending"
-    expected_result: "erlaubt"
-
-  - description: "Händler aktualisiert den Status seiner eigenen Bestellung"
+    parameters: {status: null, limit: 10}
+    expected_result: "allowed"
+  - description: "Merchant lists placed orders"
+    role: role_merchant
+    operation: read
+    template: get_my_orders
+    parameters: {status: "placed", limit: 10}
+    expected_result: "allowed"
+  - description: "Merchant updates order 5000 to shipped"
     role: role_merchant
     operation: write
     template: update_order_status
-    parameters:
-      order_id: 5000
-      new_status: "shipped"
-    expected_result: "erlaubt"
-
-  - description: "Händler aktualisiert den Preis eines seiner Produkte"
-    role: role_merchant
-    operation: write
-    template: set_product_price
-    parameters:
-      product_id: 1000
-      price: 29.99
-    expected_result: "erlaubt"
-
-  - description: "Händler erstellt eine Rückerstattung für eine seiner Bestellungen"
-    role: role_merchant
-    operation: write
-    template: issue_refund
-    parameters:
-      order_id: 5000
-      amount: 15.00
-    expected_result: "erlaubt"
-
-  - description: "Händler liest seine eigenen Produktinformationen"
-    role: role_merchant
-    operation: read
-    template: get_product_info
-    parameters:
-      product_id: 1000
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Status 'placed'"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      status: "placed"
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Status 'paid'"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      status: "paid"
-    expected_result: "erlaubt"
-
-  - description: "Händler aktualisiert den Preis eines Produkts"
-    role: role_merchant
-    operation: write
-    template: set_product_price
-    parameters:
-      product_id: 1001
-      price: 39.99
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Status 'shipped'"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      status: "shipped"
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellinformationen"
-    role: role_merchant
-    operation: read
-    template: get_order_details
-    parameters:
-      order_id: 5001
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen eines Kunden"
-    role: role_merchant
-    operation: read
-    template: get_orders_by_customer
-    parameters:
-      customer_id: 11
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Produktinformationen"
-    role: role_merchant
-    operation: read
-    template: get_product_info
-    parameters:
-      product_id: 1001
-    expected_result: "erlaubt"
-
-  - description: "Händler aktualisiert Bestellstatus"
+    parameters: {order_id: 5000, new_status: "shipped"}
+    expected_result: "allowed"
+  - description: "Merchant updates order 5001 to delivered"
     role: role_merchant
     operation: write
     template: update_order_status
-    parameters:
-      order_id: 5001
-      new_status: "delivered"
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Filter"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      date_from: "2026-01-01"
-      date_to: "2026-12-31"
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Status 'returned'"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      status: "returned"
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Limit"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      limit: 5
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellungen mit Offset"
-    role: role_merchant
-    operation: read
-    template: get_my_orders
-    parameters:
-      offset: 5
-      limit: 5
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Produkt mit spezifischer ID"
-    role: role_merchant
-    operation: read
-    template: get_product_info
-    parameters:
-      product_id: 1000
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellung mit spezifischer ID"
-    role: role_merchant
-    operation: read
-    template: get_order_details
-    parameters:
-      order_id: 5000
-    expected_result: "erlaubt"
-
-  - description: "Händler aktualisiert Produktinformation"
-    role: role_merchant
-    operation: write
-    template: update_product_info
-    parameters:
-      product_id: 1001
-      name: "Updated Product Name"
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Zahlungsinformationen"
-    role: role_merchant
-    operation: read
-    template: get_payment_info
-    parameters:
-      payment_method_id: 7000
-    expected_result: "erlaubt"
-
-  - description: "Händler liest Bestellhistorie"
-    role: role_merchant
-    operation: read
-    template: get_order_history
-    parameters:
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Händler erfasst eine neue Bestellung"
-    role: role_merchant
-    operation: write
-    template: create_order
-    parameters:
-      customer_id: 11
-      items:
-        - product_id: 1000
-          quantity: 1
-    expected_result: "erlaubt"
-
-  - description: "Händler liest seine Produktdaten"
-    role: role_merchant
-    operation: read
-    template: get_products
-    parameters:
-      tenant_id: "tenant_a"
-    expected_result: "erlaubt"
-
-  - description: "Händler aktualisiert Preis eines Produkts"
+    parameters: {order_id: 5001, new_status: "delivered"}
+    expected_result: "allowed"
+  - description: "Merchant sets product 1000 price"
     role: role_merchant
     operation: write
     template: set_product_price
-    parameters:
-      product_id: 1000
-      price: 24.99
-    expected_result: "erlaubt"
+    parameters: {product_id: 1000, price: 24.99}
+    expected_result: "allowed"
+  - description: "Merchant sets product 1001 price"
+    role: role_merchant
+    operation: write
+    template: set_product_price
+    parameters: {product_id: 1001, price: 39.99}
+    expected_result: "allowed"
+  - description: "Merchant fetches order 5000"
+    role: role_merchant
+    operation: read
+    template: get_order_details
+    parameters: {order_id: 5000}
+    expected_result: "allowed"
+  - description: "Merchant fetches order 5001"
+    role: role_merchant
+    operation: read
+    template: get_order_details
+    parameters: {order_id: 5001}
+    expected_result: "allowed"
+  - description: "Merchant fetches product 1000"
+    role: role_merchant
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 1000}
+    expected_result: "allowed"
+  - description: "Merchant fetches product 1001"
+    role: role_merchant
+    operation: read
+    template: get_product_info
+    parameters: {product_id: 1001}
+    expected_result: "allowed"
+  - description: "Merchant lists one order"
+    role: role_merchant
+    operation: read
+    template: get_my_orders
+    parameters: {status: null, limit: 1}
+    expected_result: "allowed"
+  - description: "Merchant lists five orders"
+    role: role_merchant
+    operation: read
+    template: get_my_orders
+    parameters: {status: null, limit: 5}
+    expected_result: "allowed"
+  - description: "Merchant updates order 5000 to paid"
+    role: role_merchant
+    operation: write
+    template: update_order_status
+    parameters: {order_id: 5000, new_status: "paid"}
+    expected_result: "allowed"
+  - description: "Merchant updates order 5001 to returned"
+    role: role_merchant
+    operation: write
+    template: update_order_status
+    parameters: {order_id: 5001, new_status: "returned"}
+    expected_result: "allowed"
+  - description: "Merchant sets product 1000 sale price"
+    role: role_merchant
+    operation: write
+    template: set_product_price
+    parameters: {product_id: 1000, price: 19.49}
+    expected_result: "allowed"
 
-# Adminanfragen (role_admin)
 admin_requests:
-  - description: "Admin liest alle Benutzerdaten"
+  - description: "Admin lists users (default limit)"
     role: role_admin
     operation: read
     template: get_all_users
-    parameters:
-      page: 1
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin aktualisiert die Rolle eines Benutzers"
+    parameters: {limit: 25}
+    expected_result: "allowed"
+  - description: "Admin lists users (limit 10)"
+    role: role_admin
+    operation: read
+    template: get_all_users
+    parameters: {limit: 10}
+    expected_result: "allowed"
+  - description: "Admin promotes user 11 to merchant"
     role: role_admin
     operation: write
     template: update_user_role
-    parameters:
-      user_id: 11
-      new_role: "role_customer"
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Bestellungen"
-    role: role_admin
-    operation: read
-    template: get_all_orders
-    parameters:
-      status: "all"
-      page: 1
-      limit: 20
-    expected_result: "erlaubt"
-
-  - description: "Admin löscht einen Artikel"
-    role: role_admin
-    operation: write
-    template: delete_product
-    parameters:
-      product_id: 1000
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Zahlungsinformationen"
-    role: role_admin
-    operation: read
-    template: get_all_payments
-    parameters:
-      page: 1
-      limit: 15
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Benutzer"
-    role: role_admin
-    operation: read
-    template: get_all_users
-    parameters:
-      page: 1
-      limit: 20
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Produkte"
-    role: role_admin
-    operation: read
-    template: get_all_products
-    parameters:
-      page: 1
-      limit: 15
-    expected_result: "erlaubt"
-
-  - description: "Admin aktualisiert Benutzerrolle"
+    parameters: {user_id: 11, new_role: "merchant"}
+    expected_result: "allowed"
+  - description: "Admin sets user 11 back to customer"
     role: role_admin
     operation: write
     template: update_user_role
-    parameters:
-      user_id: 12
-      new_role: "role_customer"
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Bestellungen mit Status 'placed'"
+    parameters: {user_id: 11, new_role: "customer"}
+    expected_result: "allowed"
+  - description: "Admin reads all orders with status paid"
     role: role_admin
     operation: read
-    template: get_all_orders
-    parameters:
-      status: "placed"
-      page: 1
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Bestellungen mit Status 'paid'"
+    template: get_my_orders
+    parameters: {status: "paid", limit: 20}
+    expected_result: "allowed"
+  - description: "Admin reads all orders with status placed"
     role: role_admin
     operation: read
-    template: get_all_orders
-    parameters:
-      status: "paid"
-      page: 1
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Bestellungen mit Filter nach Datum"
+    template: get_my_orders
+    parameters: {status: "placed", limit: 20}
+    expected_result: "allowed"
+  - description: "Admin fetches order 5000"
     role: role_admin
     operation: read
-    template: get_all_orders
-    parameters:
-      date_from: "2026-01-01"
-      date_to: "2026-12-31"
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Zahlungen mit Filter"
+    template: get_order_details
+    parameters: {order_id: 5000}
+    expected_result: "allowed"
+  - description: "Admin fetches order 5002"
     role: role_admin
     operation: read
-    template: get_all_payments
-    parameters:
-      date_from: "2026-01-01"
-      date_to: "2026-12-31"
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Benutzer mit Filter"
+    template: get_order_details
+    parameters: {order_id: 5002}
+    expected_result: "allowed"
+  - description: "Admin fetches product 1000"
     role: role_admin
     operation: read
-    template: get_all_users
-    parameters:
-      role_filter: "customer"
-      page: 1
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Produkte mit Filter"
+    template: get_product_info
+    parameters: {product_id: 1000}
+    expected_result: "allowed"
+  - description: "Admin fetches product 2000"
     role: role_admin
     operation: read
-    template: get_all_products
-    parameters:
-      tenant_id: "tenant_a"
-      page: 1
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Bestellungen"
-    role: role_admin
-    operation: read
-    template: get_all_orders
-    parameters:
-      page: 1
-      limit: 25
-    expected_result: "erlaubt"
-
-  - description: "Admin aktualisiert Benutzerdaten"
+    template: get_product_info
+    parameters: {product_id: 2000}
+    expected_result: "allowed"
+  - description: "Admin sets product 1000 price"
     role: role_admin
     operation: write
-    template: update_user_data
-    parameters:
-      user_id: 11
-      fields:
-        email: "updated.admin@example.com"
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Zahlungen"
-    role: role_admin
-    operation: read
-    template: get_all_payments
-    parameters:
-      page: 1
-      limit: 25
-    expected_result: "erlaubt"
-
-  - description: "Admin aktualisiert Produktinformation"
+    template: set_product_price
+    parameters: {product_id: 1000, price: 31.99}
+    expected_result: "allowed"
+  - description: "Admin sets product 2000 price"
     role: role_admin
     operation: write
-    template: update_product_info
-    parameters:
-      product_id: 1001
-      name: "Updated Admin Product"
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Produkte"
-    role: role_admin
-    operation: read
-    template: get_all_products
-    parameters:
-      page: 1
-      limit: 25
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Benutzer"
-    role: role_admin
-    operation: read
-    template: get_all_users
-    parameters:
-      page: 1
-      limit: 25
-    expected_result: "erlaubt"
-
-  - description: "Admin löscht ein Produkt"
+    template: set_product_price
+    parameters: {product_id: 2000, price: 34.49}
+    expected_result: "allowed"
+  - description: "Admin updates order 5000 status"
     role: role_admin
     operation: write
-    template: delete_product
-    parameters:
-      product_id: 1001
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Bestellungen mit Offset"
+    template: update_order_status
+    parameters: {order_id: 5000, new_status: "processing"}
+    expected_result: "allowed"
+  - description: "Admin updates order 5002 status"
     role: role_admin
-    operation: read
-    template: get_all_orders
-    parameters:
-      offset: 10
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Zahlungen mit Offset"
-    role: role_admin
-    operation: read
-    template: get_all_payments
-    parameters:
-      offset: 10
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin liest alle Produktinformationen"
-    role: role_admin
-    operation: read
-    template: get_all_products
-    parameters:
-      page: 1
-      limit: 10
-    expected_result: "erlaubt"
-
-  - description: "Admin aktualisiert Benutzerrolle"
+    operation: write
+    template: update_order_status
+    parameters: {order_id: 5002, new_status: "review"}
+    expected_result: "allowed"
+  - description: "Admin demotes user 21 to customer"
     role: role_admin
     operation: write
     template: update_user_role
-    parameters:
-      user_id: 21
-      new_role: "role_merchant"
-    expected_result: "erlaubt"
+    parameters: {user_id: 21, new_role: "customer"}
+    expected_result: "allowed"

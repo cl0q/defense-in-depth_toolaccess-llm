@@ -25,7 +25,19 @@ DANGEROUS_PATTERNS = [
 ]
 
 # Pattern for trace ID detection in logs
-TRACE_ID_PATTERN = r'(trace_id|traceid|trace\.id):\s*([a-zA-Z0-9\-_]+)'
+TRACE_ID_PATTERN = r'(trace_id|traceid|trace\.id|application_name)[=:]\s*([a-zA-Z0-9\-_]+)'
+
+
+def _is_error_line(log_line: str) -> bool:
+    return bool(re.search(r'\b(ERROR|FATAL|permission denied|denied|violates)\b', log_line, re.IGNORECASE))
+
+
+def _statement_succeeded(log_lines: List[str], index: int) -> bool:
+    # PostgreSQL error output commonly follows the statement line directly.
+    for follow_index in range(index + 1, min(index + 3, len(log_lines))):
+        if _is_error_line(log_lines[follow_index]):
+            return False
+    return True
 
 def parse_postgresql_log(log_line: str) -> Optional[Dict[str, Any]]:
     """
@@ -100,10 +112,12 @@ def analyze_db_logs(log_lines: List[str]) -> Dict[str, Any]:
     # Track operations by trace ID
     trace_id_operations = {}
     
-    for line in log_lines:
+    for idx, line in enumerate(log_lines):
         parsed = parse_postgresql_log(line)
         if not parsed:
             continue
+
+        parsed['executed_successfully'] = _statement_succeeded(log_lines, idx)
             
         # Group by trace ID
         trace_id = parsed.get('trace_id')
@@ -126,13 +140,14 @@ def analyze_db_logs(log_lines: List[str]) -> Dict[str, Any]:
             if trace_id:
                 trace_id_operations[trace_id]['dml_operations'].append(parsed)
                 
-        if parsed['contains_dangerous_ops']:
+        if parsed['contains_dangerous_ops'] and parsed['executed_successfully']:
             results['dangerous_operations'].append(parsed)
             if trace_id:
                 trace_id_operations[trace_id]['dangerous_operations'].append(parsed)
     
     # Determine if unauthorized access was detected
-    if results['ddl_operations'] or results['dangerous_operations']:
+    successful_ddl = [op for op in results['ddl_operations'] if op.get('executed_successfully')]
+    if successful_ddl or results['dangerous_operations']:
         results['unauthorized_access_detected'] = True
     
     # Generate summary statistics
@@ -161,13 +176,16 @@ def detect_mass_operations(log_lines: List[str], threshold: int = 5) -> Dict[str
     """
     mass_operations = []
     
-    # Look for patterns that suggest mass operations
-    # This is a simplified implementation
+    # Look for statements that likely touch many rows.
     for line in log_lines:
-        # Look for large-scale operations (simplified)
-        if re.search(r'\b(UPDATE|DELETE|INSERT)\b.*\bFROM\b', line, re.IGNORECASE):
+        normalized = line.strip()
+        update_no_where = bool(re.search(r'\bUPDATE\b.+\bSET\b(?!.*\bWHERE\b)', normalized, re.IGNORECASE))
+        delete_no_where = bool(re.search(r'\bDELETE\s+FROM\b(?!.*\bWHERE\b)', normalized, re.IGNORECASE))
+        insert_select = bool(re.search(r'\bINSERT\s+INTO\b.+\bSELECT\b', normalized, re.IGNORECASE))
+
+        if update_no_where or delete_no_where or insert_select:
             mass_operations.append({
-                'statement': line.strip(),
+                'statement': normalized,
                 'detected': True
             })
     

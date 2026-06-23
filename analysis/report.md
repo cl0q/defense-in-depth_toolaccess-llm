@@ -14,7 +14,7 @@ This report analyzes the Attack Success Rate (ASR) data for different security c
 | DC-a | 0.200 | 10 |
 | DC-b | 0.050 | 10 |
 | DC-c | 0.020 | 10 |
-| I6 | 0.000 | 10 |
+| DT | 0.000 | 10 |
 
 ### Detailed ASR Results by Target
 
@@ -28,7 +28,7 @@ This report analyzes the Attack Success Rate (ASR) data for different security c
 | DC-a | 0.200 | 0.057 | 0.510 | 10 |
 | DC-b | 0.050 | 0.005 | 0.345 | 10 |
 | DC-c | 0.020 | 0.001 | 0.305 | 10 |
-| I6 | 0.000 | 0.000 | 0.278 | 10 |
+| DT | 0.000 | 0.000 | 0.278 | 10 |
 
 #### Target: G-R2
 | Configuration | Mean ASR | Lower CI | Upper CI | Sample Size |
@@ -40,16 +40,16 @@ This report analyzes the Attack Success Rate (ASR) data for different security c
 | DC-a | 0.150 | 0.035 | 0.459 | 10 |
 | DC-b | 0.030 | 0.002 | 0.319 | 10 |
 | DC-c | 0.010 | 0.000 | 0.292 | 10 |
-| I6 | 0.000 | 0.000 | 0.278 | 10 |
+| DT | 0.000 | 0.000 | 0.278 | 10 |
 
 ### Key Findings
 
-- For target G-R1: I6 achieves the lowest ASR (0.000)
-- For target G-R2: I6 achieves the lowest ASR (0.000)
+- For target G-R1: DT achieves the lowest ASR (0.000)
+- For target G-R2: DT achieves the lowest ASR (0.000)
 
 ### Overall Pattern Analysis
 
-1. **Security Effectiveness**: The security layers (DC-a, DC-b, DC-c, D++, I6) show significant reduction in ASR compared to baseline configurations.
+1. **Security Effectiveness**: The security layers (DC-a, DC-b, DC-c, D++, DT) show significant reduction in ASR compared to baseline configurations.
 2. **Layer Impact**: DC-b (Row Level Security) shows the most dramatic reduction in ASR, achieving near-zero rates for most targets.
 3. **Progressive Protection**: The layered approach (D++) that combines all security measures achieves the best protection.
 4. **Cost Considerations**: Later layers (DB, DC-c) show increasing resource costs (latency, energy) compared to earlier layers.

@@ -24,15 +24,12 @@ Quellen: `[Q:postgres-rls]`, `[Q:postgres-privileges]`, `[Q:postgres-session-con
 > **erst Daten laden, dann RLS aktivieren**.
 
 ```bash
-createdb marketplace
-psql -d marketplace -v ON_ERROR_STOP=1 -f 01_schema.sql       # Tabellen, Rollen, GUC-Helfer
-psql -d marketplace -v ON_ERROR_STOP=1 -f 05_constraints.sql  # CHECKs + audit_log append-only
-psql -d marketplace -v ON_ERROR_STOP=1 -f 06_seed.sql         # Basisdaten
-psql -d marketplace -v ON_ERROR_STOP=1 -f 07_canary.sql       # Canary-Token
-psql -d marketplace -v ON_ERROR_STOP=1 -f 02_grants.sql       # DC-a
-psql -d marketplace -v ON_ERROR_STOP=1 -f 03_rls.sql          # DC-b
-psql -d marketplace -v ON_ERROR_STOP=1 -f 04_masking.sql      # DC-c
+./bootstrap_db.sh
 ```
+
+The script recreates `marketplace`, loads the SQL files in the required order,
+applies `log_statement = 'all'`, reloads PostgreSQL configuration, and verifies
+the role and RLS posture.
 
 `postgresql.conf` für den Oracle-Audit-Trail (`[Q:postgres-pooling-state]`):
 

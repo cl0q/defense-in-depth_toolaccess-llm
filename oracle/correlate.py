@@ -184,7 +184,8 @@ def calculate_wilson_score_confidence_interval(proportion: float, n: int, confid
 
 def calculate_binomial_confidence_interval(proportion: float, n: int, confidence: float = 0.95) -> Dict[str, float]:
     """
-    Calculate binomial confidence interval using normal approximation.
+    Backward-compatible wrapper for confidence interval calculation.
+    Uses Wilson score interval to avoid unstable Wald bounds.
     
     Args:
         proportion (float): Observed proportion
@@ -194,32 +195,7 @@ def calculate_binomial_confidence_interval(proportion: float, n: int, confidence
     Returns:
         Dict[str, float]: Lower and upper bounds of confidence interval
     """
-    if n == 0:
-        return {'lower': 0.0, 'upper': 0.0}
-    
-    # Z-score for confidence level
-    if confidence == 0.90:
-        z = 1.645
-    elif confidence == 0.95:
-        z = 1.96
-    elif confidence == 0.99:
-        z = 2.576
-    else:
-        z = 1.96  # default to 95% confidence
-    
-    # Standard error
-    se = math.sqrt(proportion * (1 - proportion) / n)
-    
-    # Margin of error
-    margin = z * se
-    
-    lower_bound = max(0, proportion - margin)
-    upper_bound = min(1, proportion + margin)
-    
-    return {
-        'lower': lower_bound,
-        'upper': upper_bound
-    }
+    return calculate_wilson_score_confidence_interval(proportion, n, confidence)
 
 def finalize_trace_correlation(trace_id: str) -> bool:
     """

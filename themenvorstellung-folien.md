@@ -138,9 +138,9 @@ Sechs gebündelte Ziele (gegen Matrix-Explosion) — jedes mit einem harten, **L
 | **DC-b** Row-Level Security | `USING` (Lesen) **+** `WITH CHECK` (Schreiben), Identität via `SET app.current_tenant` | Infra · **deterministisch** |
 | **DC-c** Column-Masking | sensible Spalten via maskierte Views / Spalten-`GRANT` entfernt | Infra · **deterministisch** |
 | **D++** Defense-in-Depth | DA + DB + DC-a/b/c sequenziell | gestaffelt |
-| **I6** Tool-Schnittstelle | nur parametrisierte Templates (Function-Calling) → eliminiert LLM05 | Architektur · **deterministisch** |
+| **DT** Tool-Schnittstelle | nur parametrisierte Templates (Function-Calling) → eliminiert LLM05 | Architektur · **deterministisch** |
 
-> Kernachse (FF3): **probabilistisch (DA/DB)** — nie garantiert, ein Jailbreak genügt — vs. **deterministisch (DC/I6)** — strukturelle, beweisbare Garantie unterhalb des LLM.
+> Kernachse (FF3): **probabilistisch (DA/DB)** — nie garantiert, ein Jailbreak genügt — vs. **deterministisch (DC/DT)** — strukturelle, beweisbare Garantie unterhalb des LLM.
 
 ---
 
@@ -162,13 +162,13 @@ Sechs gebündelte Ziele (gegen Matrix-Explosion) — jedes mit einem harten, **L
 
 ---
 
-## Folie 11 — I6: empfohlene Produktivarchitektur
+## Folie 11 — DT: empfohlene Produktivarchitektur
 
 **Doppelrolle:**
 1. **Im Experiment** — obere Vergleichsgrenze („Decke"): statt freiem SQL nur geprüfte, parametrisierte Templates; das LLM füllt **nur Parameter** → **LLM05 entfällt konstruktionsbedingt**.
-2. **Als Empfehlung (Konsequenz der Befunde)** — bei realem Unternehmenseinsatz **muss** die Idee als I6 implementiert werden: kein freies NL-to-SQL, jede Operation vorab definiert/auditierbar.
+2. **Als Empfehlung (Konsequenz der Befunde)** — bei realem Unternehmenseinsatz **muss** die Idee als DT implementiert werden: kein freies NL-to-SQL, jede Operation vorab definiert/auditierbar.
 
-> Framing: NL-to-SQL (D0–DC) ist der untersuchte **Status quo** mit voller Angriffsfläche; **I6 ist die architektonische Antwort** — das LLM degradiert vom „SQL-Autor" zum „Intent-/Parameter-Lieferanten". Die LDAP→Session→RLS-Kette bleibt identisch.
+> Framing: NL-to-SQL (D0–DC) ist der untersuchte **Status quo** mit voller Angriffsfläche; **DT ist die architektonische Antwort** — das LLM degradiert vom „SQL-Autor“ zum „Intent-/Parameter-Lieferanten“. Die LDAP→Session→RLS-Kette bleibt identisch.
 
 ---
 
@@ -229,7 +229,7 @@ graph TD
 
 Konfigurationen × Ziele × n Wiederholungen:
 
-| Ziel | DA / DB (probabil.) | DC (determin.) | I6 |
+| Ziel | DA / DB (probabil.) | DC (determin.) | DT |
 |------|:--:|:--:|:--:|
 | G-R1 Cross-Tenant-Read | teilweise | **0 (DC-b)** | 0 |
 | G-R2 Column-Read | teilweise | **0 (DC-c)** | 0 |
@@ -251,7 +251,7 @@ Konfigurationen × Ziele × n Wiederholungen:
 - **8 Akzeptanztests grün** (Tenant-Isolation, Escalation-Block, Column-Masking, Cross-Tenant-Write = 0 Zeilen, …)
 - Layer einzeln schaltbar via `teardown/`-Skripte (idempotent) → Experiment-Matrix
 
-**✅ Als Nächstes:** I6-Template-Katalog · FastAPI-Gateway + LDAP-Propagation · Oracle (Canary/State-Diff/DB-Log) · Promptfoo-Config · Statistik/Plots.
+**✅ Als Nächstes:** DT-Template-Katalog · FastAPI-Gateway + LDAP-Propagation · Oracle (Canary/State-Diff/DB-Log) · Promptfoo-Config · Statistik/Plots.
 
 > **Status:** Alle Schritte 1–6 sind implementiert. Schritt 7 (Statistik, Analyse, Folien) wird nun abgeschlossen.
 
@@ -283,7 +283,7 @@ Konfigurationen × Ziele × n Wiederholungen:
 - DB-Schema + RLS + Canaries + Akzeptanztests · Modell-Pinning
 
 **BLOCK 2 — Pipeline & Messaufbau**
-- FastAPI-Gateway + LDAP-Propagation · Defense A/B (Llama-Guard) · I6-Templates
+- FastAPI-Gateway + LDAP-Propagation · Defense A/B (Llama-Guard) · DT-Templates
 - Oracle (Canary/State-Diff/DB-Log) · Legitim-Set · Promptfoo/garak-Config
 
 **BLOCK 3 — Messen & Auswerten**
@@ -323,7 +323,7 @@ Konfigurationen × Ziele × n Wiederholungen:
 
 **B1 — „Woher weiß der Nutzer, dass die Abwehr greift?" (Assurance)**
 - Probabilistisch (DA/DB): nur Statistik („hält in X %") — ein Jailbreak genügt.
-- Deterministisch (DC/I6): **strukturelle, beweisbare** Garantie — RLS-Policies/Grants sind statisch lesbar & zertifizierbar, unabhängig vom LLM.
+- Deterministisch (DC/DT): **strukturelle, beweisbare** Garantie — RLS-Policies/Grants sind statisch lesbar & zertifizierbar, unabhängig vom LLM.
 - I9 (Dry-Run + Human-Approval) macht Hochrisiko-Writes vor Ausführung sichtbar.
 
 **B2 — Warum „nur" Qwen3-14B / 70B-Attacker?**

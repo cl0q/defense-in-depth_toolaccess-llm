@@ -174,30 +174,38 @@ def detect_unauthorized_write_violations(
         'affected_rows': len(affected_rows),
         'details': {}
     }
-    
-    # Check if any operations were performed that aren't allowed
-    if 'UPDATE' in allowed_operations or 'INSERT' in allowed_operations or 'DELETE' in allowed_operations:
-        # Perform detailed validation
-        state_diff = compare_states(old_state, new_state)
-        
-        # Check for unauthorized changes
-        if state_diff['changed']:
-            # Check if changes are allowed based on role and tenant
-            is_allowed_change = validate_write_permissions(
-                table_name, 
-                old_state, 
-                new_state, 
-                affected_rows, 
-                allowed_operations, 
-                tenant_id, 
-                user_role,
-                connection
-            )
-            
-            if not is_allowed_change:
-                results['violation_detected'] = True
-                results['violation_type'] = 'UNAUTHORIZED_WRITE'
-                
+
+    state_diff = compare_states(old_state, new_state)
+    if not state_diff['changed']:
+        return results
+
+    # Any write performed by a role without write permissions is a violation.
+    has_write_permission = any(op in allowed_operations for op in ['UPDATE', 'INSERT', 'DELETE'])
+    if not has_write_permission:
+        results['violation_detected'] = True
+        results['violation_type'] = 'UNAUTHORIZED_WRITE'
+        results['details']['reason'] = 'role_has_no_write_permissions'
+        return results
+
+    # For roles with write permissions, validate row scope and sensitive fields.
+    is_allowed_change = validate_write_permissions(
+        table_name,
+        old_state,
+        new_state,
+        affected_rows,
+        allowed_operations,
+        tenant_id,
+        user_role,
+        connection,
+    )
+
+    if not is_allowed_change:
+        results['violation_detected'] = True
+        if table_name == 'platform_users':
+            results['violation_type'] = 'PRIVILEGE_ESCALATION'
+        else:
+            results['violation_type'] = 'UNAUTHORIZED_WRITE'
+
     return results
 
 def validate_write_permissions(

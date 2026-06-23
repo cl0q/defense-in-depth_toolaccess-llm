@@ -33,7 +33,7 @@ GRANT  SELECT (id, order_id, tenant_id, amount) ON payments TO role_customer;
 
 -- -----------------------------------------------------------------------------
 -- Maskierte Views (security_invoker → RLS des Aufrufers bleibt aktiv).
--- Das Gateway/I6-Templates lesen bevorzugt diese Views statt der Basistabellen.
+-- Gateway/DT templates should prefer these views over base tables.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE VIEW app.products_catalog
     WITH (security_invoker = true) AS

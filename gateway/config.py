@@ -1,6 +1,6 @@
 """
 Configuration module for LLM Gateway.
-Manages the different security layers (D0, DA, DB, DC-*, I6) and their settings.
+Manages the different security layers (D0, DA, DB, DC-*, DT) and their settings.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     layer_dc_a: bool = True  # DC-a: Role-based grants
     layer_dc_b: bool = True  # DC-b: Row Level Security
     layer_dc_c: bool = True  # DC-c: Column masking
-    layer_i6: bool = True  # I6: Template-based operations
+    layer_dt: bool = True  # DT: Restricted tool interface
     
     # Feature Flags
     enable_trace_id: bool = True
@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     # Database Settings
     db_host: str = "localhost"
     db_port: int = 5432
-    db_name: str = "llm_db"
-    db_user: str = "gateway_user"
-    db_password: str = "secure_password"
+    db_name: str = "marketplace"
+    db_user: str = "role_app"
+    db_password: str = "change_me"
     
     # LLM Settings
     llm_endpoint: str = "http://localhost:8001/v1/completions"
@@ -63,8 +63,8 @@ def get_active_layers() -> List[str]:
         active_layers.append("DC-b")
     if config.layer_dc_c:
         active_layers.append("DC-c")
-    if config.layer_i6:
-        active_layers.append("I6")
+    if config.layer_dt:
+        active_layers.append("DT")
     
     return active_layers
 
@@ -79,7 +79,7 @@ def is_layer_enabled(layer: str) -> bool:
         "DC-a": config.layer_dc_a,
         "DC-b": config.layer_dc_b,
         "DC-c": config.layer_dc_c,
-        "I6": config.layer_i6
+        "DT": config.layer_dt
     }
     
     return layer_map.get(layer, False)

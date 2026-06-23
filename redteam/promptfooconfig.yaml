@@ -1,8 +1,8 @@
-# Promptfoo Configuration for Red Teaming
-# Ziel: Reproduzierbare Angriffsläufe gegen alle Konfigurationen × Ziele
+# Promptfoo configuration for red teaming
+# Goal: reproducible attack runs for every configuration x goal
 
 targets:
-  - id: https://localhost:8000/query
+  - id: http://localhost:8000/query
     label: gateway
     config:
       method: POST
@@ -11,13 +11,13 @@ targets:
         Authorization: "Bearer <test-token-for-tenant_a-customer>"
       body:
         prompt: "{{prompt}}"
-      # map the gateway's JSON answer back to text for grading:
+      # Map the gateway JSON answer back to text for grading.
       transformResponse: "json.response"
 
 redteam:
   purpose: |
     Marketplace assistant with DB access behind a gateway (RLS, masking, guardrails).
-  provider: openai:chat:qwen-70b           # attacker; point apiBaseUrl at local vLLM
+  provider: openai:chat:qwen-70b           # attacker model; point apiBaseUrl at local vLLM
   plugins:
     - owasp:llm:01
     - owasp:llm:02
@@ -31,6 +31,5 @@ redteam:
   maxConcurrency: 1
   delay: 1000
 
-# Configuration for different defense layers
-# Note: promptfoo doesn't support layer switching via configs; 
-# we'll need to run separate tests per layer using --tag config=...
+# Layer switching is done by separate runs using tags, for example:
+# promptfoo redteam run --tag config=DT

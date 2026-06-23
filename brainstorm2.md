@@ -8,7 +8,7 @@ Generalisierbarkeit. Modellnamen sind noch zu pinnen (siehe offene Punkte).
 > **Hinweis (12. Juni 2026):** Leitfassung für Bedrohungsmodell und
 > Verteidigung ist `angriffsvektoren-und-verteidigung.md`. Diese Datei wurde an
 > jenen Stand angeglichen: **Schreib-/Modifikations-Angriffe** (LLM06),
-> **dreistufige Infrastruktur-Verteidigung DC-a/b/c**, **I6** (parametrisierte
+> **dreistufige Infrastruktur-Verteidigung DC-a/b/c**, **DT** (parametrisierte
 > Templates) und die korrigierten Hypothesen **H3a′/H3c′**.
 
 ---
@@ -129,11 +129,11 @@ Vergleich der Baseline gegen Einzel-Layer und die kombinierte Pipeline:
 | **Defense C — DC-b** | Row-Level Security: `USING` (Lese-Isolation) **+** `WITH CHECK` (Schreib-Isolation); authentifizierte Rolle aus **LDAP/AD** via `SET app.current_tenant` in die DB-Session propagiert | Infrastruktur (deterministisch) |
 | **Defense C — DC-c** | Column-Masking / Views für sensible Spalten (`card_token`, `internal_cost`) | Infrastruktur (deterministisch) |
 | **Defense A++ (D++)** | Sequentielle Kombination DA + DB + DC-a/b/c | Defense-in-Depth |
-| **I6 (Referenz)** | Eingeschränkte Tool-Schnittstelle: nur parametrisierte Query-Templates, kein freies SQL (eliminiert LLM05 konstruktionsbedingt) | Architektur (deterministisch) |
+| **DT (Referenz)** | Eingeschränkte Tool-Schnittstelle: nur parametrisierte Query-Templates, kein freies SQL (eliminiert LLM05 konstruktionsbedingt) | Architektur (deterministisch) |
 
-> **I6** ist zugleich die **empfohlene Produktivarchitektur**: Bei realem
+> **DT** ist zugleich die **empfohlene Produktivarchitektur**: Bei realem
 > Unternehmenseinsatz fällt freies NL-to-SQL weg — IT-sicherheitstechnisch
-> überlegen. Im Experiment dient I6 als obere Vergleichsgrenze, nicht als
+> überlegen. Im Experiment dient DT als obere Vergleichsgrenze, nicht als
 > gleichwertiger NL-to-SQL-Messlayer. Details: `angriffsvektoren-und-verteidigung.md` §5.
 
 Experiment-Matrix: jede Konfiguration × jedes Erfolgsziel (G-R1/R2/W1/W2/W3/S1,
@@ -321,7 +321,7 @@ Paralleles Hosting via vLLM auf getrennten Ports (z. B. 8000/8001):
       (z. B. `Qwen/Qwen3-14B`). Llama-Checkpoint exakt verifizieren, sobald geladen.
 - [ ] Konkretes DB-Schema + RLS-Policies (`USING` **und** `WITH CHECK`) +
       Spalten-Grants/Views + Canary-Datensätze entwerfen.
-- [ ] I6-Template-Katalog definieren (parametrisierte Operationen je Rolle).
+- [ ] DT-Template-Katalog definieren (parametrisierte Operationen je Rolle).
 - [ ] Gateway-Implementierung (FastAPI) + Trace-ID-Mechanik spezifizieren.
 - [ ] Defense-B-Klassifikator auswählen (Llama-Guard-Variante + RegEx-Set).
 - [ ] Promptfoo-Konfiguration: Plugins (`owasp:llm:*`), Strategien (Crescendo,

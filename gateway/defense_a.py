@@ -8,19 +8,15 @@ from typing import Dict, List
 
 # Define dangerous patterns that should be avoided in prompts
 DANGEROUS_PATTERNS = [
-    r"you are a helpful assistant",
     r"ignore previous instructions",
     r"forget about the rules",
     r"pretend you are",
     r"act like you are",
     r"override all safety protocols",
     r"bypass all restrictions",
-    r"supress all warnings",
+    r"suppress all warnings",
     r"forget everything",
     r"system prompt",
-    r"continue with",
-    r"perform the following",
-    r"execute the command",
     r"change your behavior",
     r"disable all protections",
     r"remove all limitations",
@@ -43,21 +39,15 @@ def apply_defense_a(prompt: str) -> str:
     Enhances the system prompt to make it more robust against prompt injection
     and jailbreaking attempts.
     """
+    # Normalize whitespace and retain the original user content.
+    normalized_prompt = " ".join(prompt.split())
+
     # Check for dangerous patterns in the prompt
     for pattern in DANGEROUS_PATTERNS:
-        if re.search(pattern, prompt.lower()):
-            # In production, you might want to throw an exception or modify behavior
-            # For now, we'll warn and continue with hardening
+        if re.search(pattern, normalized_prompt.lower()):
             print(f"Warning: Potentially dangerous pattern detected in prompt: {pattern}")
-    
-    # Apply prompt hardening techniques
-    hardened_prompt = prompt
-    
-    # Ensure the prompt is properly bounded
-    # This would normally be done in conjunction with the system prompt
-    # that gets sent to the LLM
-    
-    return hardened_prompt
+
+    return normalized_prompt
 
 def validate_system_prompt(system_prompt: str) -> bool:
     """

@@ -6,7 +6,7 @@ Addresses red team configuration issues (M3-M4) along with testing framework pro
 Security Testing Engineer specializing in red team operations and test automation
 
 ## Deliverables
-1. Rebuild legit_set.yaml against real schema and I6 template catalog
+1. Rebuild legit_set.yaml against real schema and DT template catalog
 2. Use seeded IDs that match database (orders 5000/5001, products 1000/1001, payments 7000/7001)
 3. Balance read/write operations per role (15-25 per role minimum)
 4. Rewrite G-S1 attack seed to use proper indirect injection pattern

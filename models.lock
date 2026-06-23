@@ -1,7 +1,23 @@
-# Pinned model versions for reproducibility
-# Target model: Qwen/Qwen3-14B
-Qwen/Qwen3-14B@v1.0.0
+# Reproducibility lockfile for the thesis evaluation stack.
+# Keep these values consistent across the bootstrap script, gateway config,
+# red-team runner, and baseline runner.
 
-# Attacker model (to be pinned consistently)
-# Note: Using Qwen/Qwen3-14B for consistency across environments
-Qwen/Qwen3-14B@v1.0.0
+[models]
+target = Qwen/Qwen3-14B@v1.0.0
+attacker = Qwen/Qwen3-70B@v1.0.0
+
+[runtime]
+seed = 42
+temperature = 0.0
+quantization = 4bit
+gateway_endpoint = http://127.0.0.1:8000/query
+target_endpoint = http://127.0.0.1:8001/v1/completions
+promptfoo_remote_generation = false
+promptfoo_layers = D0,DA,DB,DC-a,DC-b,DC-c,D++,DT
+garak_probes = dan,promptinject
+
+[tooling]
+postgresql = 16
+vllm = local-openai-compatible
+promptfoo = redteam generate/eval
+garak = baseline-scan

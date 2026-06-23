@@ -26,7 +26,7 @@
 ### 4. Konfigurationsmanagement
 - Implementierung von `gateway/config.py`:
   - Einstellung der schaltbaren Sicherheitslayer
-  - Unterstützung für verschiedene Konfigurationen (D0/DA/DB/DC-*/I6)
+  Unterstützung für verschiedene Konfigurationen (D0/DA/DB/DC-*/DT)
 
 ### 5. Setup und Dokumentation
 - Erstellung von `gateway/README.md`:

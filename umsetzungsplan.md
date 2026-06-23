@@ -7,7 +7,7 @@
 >
 > **Leitdokumente (immer zuerst lesen):**
 > - `angriffsvektoren-und-verteidigung.md` — Leitfassung (Bedrohungsmodell,
->   Angriffe R1–R3/W1–W5/S1, Erfolgsziele G-*, Layer D0/DA/DB/DC-a/b/c/I6,
+>   Angriffe R1–R3/W1–W5/S1, Erfolgsziele G-*, Layer D0/DA/DB/DC-a/b/c/DT,
 >   Hypothesen H3a′/H3c′, Experiment-Matrix).
 > - `bedrohungsmodell.md` — Akteure, Berechtigungsmatrix, Assurance.
 > - `brainstorm2.md` — Forschungsfragen FF1–FF3, Oracle-Methodik, Reproduzierbarkeit.
@@ -53,7 +53,7 @@
 ```
 
 **Konfigurationen (Experiment):** D0 · DA · DB · DC-a · DC-b · DC-c ·
-D++ (DA+DB+DC-a/b/c) · I6 (Referenz-Obergrenze).
+D++ (DA+DB+DC-a/b/c) · DT (Referenz-Obergrenze).
 **Erfolgsziele:** G-R1 · G-R2 · G-W1 · G-W2 · G-W3 · G-S1.
 
 ### Vorgeschlagene Repo-Struktur
@@ -73,8 +73,8 @@ bachelorarbeit/
 │  ├─ identity.py             # LDAP/AD-Lookup → Session-Variablen
 │  ├─ defense_a.py            # System-Prompt-Härtung
 │  ├─ defense_b.py            # Input-Guardrail (Llama-Guard + RegEx)
-│  ├─ templates.py            # I6: parametrisierte Query-Templates
-│  └─ config.py               # Layer-Schalter (D0/DA/DB/DC-*/I6)
+│  ├─ templates.py            # DT: parametrisierte Query-Templates
+│  └─ config.py               # Layer-Schalter (D0/DA/DB/DC-*/DT)
 ├─ oracle/
 │  ├─ canary.py               # contains-Check fremder Canaries
 │  ├─ state_diff.py           # Write-Erkennung (Snapshot/Diff)
@@ -161,7 +161,7 @@ das Herzstück (DC-b) und der konkrete Beweis für H3c′.
 
 ---
 
-## Schritt 2 — I6-Template-Katalog (parametrisierte Operationen)
+## Schritt 2 — DT-Template-Katalog (parametrisierte Operationen)
 
 **Ziel:** Definierter Katalog geprüfter, parametrisierter Operationen je Rolle —
 zugleich die Spezifikation der empfohlenen Produktivarchitektur (kein freies SQL).
@@ -190,7 +190,7 @@ zugleich die Spezifikation der empfohlenen Produktivarchitektur (kein freies SQL
 - LLM05 ist konstruktionsbedingt nicht auslösbar (kein freies SQL-Feld).
 
 **Einstiegs-Prompt:**
-> „Lies §5.3 und Schritt 2. Definiere den I6-Template-Katalog als
+> „Lies §5.3 und Schritt 2. Definiere den DT-Template-Katalog als
 > Function-Calling-Schema + parametrisiertes SQL, abgeleitet aus den legitimen
 > UseCases (§1). Stelle sicher, dass jeder UseCase abgedeckt ist.“
 
@@ -216,7 +216,7 @@ LDAP/AD-Identitäts-Propagation, schaltbare Defense A/B, Trace-ID, Latenz-Loggin
   — die Sicherheitsaussage hängt an der *Propagation*, nicht am LDAP-Produkt.
   Entscheiden: echtes OpenLDAP (externe Validität) vs. Mock (Aufwand). Empfehlung:
   schlankes OpenLDAP, da die LDAP-Anbindung Teil der eigenen Idee ist.
-- **Layer-Schalter:** Eine Konfig (ENV/YAML) aktiviert D0/DA/DB/DC-*/I6 pro Lauf.
+- **Layer-Schalter:** Eine Konfig (ENV/YAML) aktiviert D0/DA/DB/DC-*/DT pro Lauf.
   DC-Schalter wirken auf DB-Setup (welche SQL-Skripte geladen sind) bzw.
   Verbindungsrolle; DA/DB im Gateway-Code.
 - **Trace-ID:** Pro Request eindeutige ID im Header; im DB-Log via
@@ -348,7 +348,7 @@ auf neuen Stand.
   Bootstrap/χ²/Fisher je nach n) für H1a/H3a′.
 - **Trade-off-Diagramm:** ASR-Reduktion (y) vs. Latenz/Energie (x) je Layer.
 - **Energie:** isolierte Runs (nur Target aktiv), NVML/DCGM, Wh/Anfrage.
-- **Folien:** Schreib-Angriffe, DC-Stufen (a/b/c), LDAP-Propagation, I6 als
+- **Folien:** Schreib-Angriffe, DC-Stufen (a/b/c), LDAP-Propagation, DT als
   Empfehlung, Assurance-Antwort.
 
 **Akzeptanzkriterien:**
@@ -372,13 +372,13 @@ auf neuen Stand.
 
 ## Abhängigkeitsgraph der Schritte
 ```
-1 (DB/RLS) ──┬─► 2 (I6-Templates)
+1 (DB/RLS) ──┬─► 2 (DT-Templates)
              ├─► 3 (Gateway/LDAP) ──► 6 (Red-Teaming) ──► 7 (Analyse/Folien)
              └─► 4 (Oracles) ────────►┘
                  5 (Legit-Set) ───────►┘
 6 (Statistik-Plan) kann parallel ab Beginn entworfen werden.
 ```
-Kritischer Pfad: **1 → 3 → 6 → 7** (4 & 5 speisen 6; 2 speist die I6-Spalte).
+Kritischer Pfad: **1 → 3 → 6 → 7** (4 & 5 speisen 6; 2 speist die DT-Spalte).
 
 ---
 

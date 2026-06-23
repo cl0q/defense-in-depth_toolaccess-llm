@@ -3,14 +3,14 @@
 > Konsolidierte, gelockte Fassung nach dem Brainstorm vom 12. Juni 2026.
 > Erweitert `bedrohungsmodell.md` und `brainstorm2.md` um **Schreib-/
 > Modifikations-Angriffe**, eine **dreistufige Infrastruktur-Verteidigung (DC)**
-> und die **eingeschränkte Tool-Schnittstelle (I6)** als empfohlene
+> und die **eingeschränkte Tool-Schnittstelle (DT)** als empfohlene
 > Produktivarchitektur. Löst zugleich den Hypothesen-Widerspruch (Defense C neu
 > vs. altes LLM02-Caveat) auf.
 >
 > **Status der Kernentscheidungen (gelockt):**
 > - ✅ Schreib-/Modifikations-Angriffe werden aufgenommen (LLM06 voll bespielt).
 > - ✅ Infrastruktur-Verteidigung DC in drei messbaren Stufen (DC-a/b/c).
-> - ✅ I6 (parametrisierte Templates) als Architektur-Decke **und** als die
+> - ✅ DT (parametrisierte Templates) als Architektur-Decke **und** als die
 >   Architektur, die bei echtem Unternehmenseinsatz zu implementieren wäre —
 >   dann entfällt freies NL-to-SQL (IT-sicherheitstechnisch überlegen).
 > - ✅ Domäne bleibt Marktplatz (Käufer/Händler/Plattform); Schreib-UseCases
@@ -238,11 +238,11 @@ okm
 > untersucht den **Status quo** (D0–DC), in dem das LLM freies SQL generiert —
 > genau das ist die zu messende Angriffsfläche, und DC-b beweist seinen Wert
 > *gerade* gegen bösartig erzeugtes SQL. Die Identitäts-Propagation (LDAP/AD →
-> Session → RLS) ist **nicht** an NL-to-SQL gebunden: Bei **I6** (§5.3) gilt sie
+> Session → RLS) ist **nicht** an NL-to-SQL gebunden: Bei **DT** (§5.3) gilt sie
 > identisch, nur tritt an die Stelle von „generiertes SQL" ein „Template-Name +
 > Parameter". Die LDAP→Session→RLS-Kette bleibt unverändert.
 
-### 5.3 I6 — Eingeschränkte Tool-Schnittstelle (parametrisierte Templates)
+### 5.3 DT — Eingeschränkte Tool-Schnittstelle (parametrisierte Templates)
 
 **Doppelte Rolle:**
 
@@ -252,7 +252,7 @@ okm
    das Modell kann keine beliebigen Statements mehr erzeugen.
 
 2. **Als empfohlene Produktivarchitektur (gelockt).** Würde die in dieser Arbeit
-   gebaute Idee real im Unternehmen eingesetzt, **muss** sie als I6 implementiert
+   gebaute Idee real im Unternehmen eingesetzt, **muss** sie als DT implementiert
    werden. Dann **entfällt freies NL-to-SQL vollständig** — was
    IT-sicherheitstechnisch überlegen ist:
    - keine SQL-Injection-Oberfläche durch das Modell,
@@ -261,9 +261,9 @@ okm
    - das LLM degradiert vom „SQL-Autor" zum „Intent-/Parameter-Lieferanten".
 
 > **Framing in der Arbeit:** NL-to-SQL (D0–DC) ist der untersuchte *Status quo*
-> mit voller Angriffsfläche; I6 ist die **architektonische Konsequenz** der
+> mit voller Angriffsfläche; DT ist die **architektonische Konsequenz** der
 > Befunde — die Empfehlung, die die Angriffsklasse LLM05 prinzipiell eliminiert.
-> Im Experiment dient I6 als Referenz-Obergrenze, nicht als gleichwertiger
+> Im Experiment dient DT als Referenz-Obergrenze, nicht als gleichwertiger
 > NL-to-SQL-Messlayer (sonst würde die Natur des Systems verändert und der
 > Vergleich verzerrt).
 
@@ -271,9 +271,9 @@ okm
 
 | ID | Maßnahme | Zweck |
 |----|----------|-------|
-| **I5** | CHECK-Constraints / Trigger (z. B. „`orders.total` darf nach Zahlung nicht sinken"), `audit_log` append-only | deterministische Geschäftsregel-Integrität gegen W3/W5 |
-| **I8** | Row-Caps / `statement_timeout` / `LIMIT`-Enforcement | gegen Massen-Exfiltration (LLM10-Aspekt) |
-| **I9** | Dry-Run + Human-Approval für Hochrisiko-Writes (Transaktion, Diff zeigen, dann `COMMIT`) | **Assurance**: Nutzer sieht *was* geändert würde, bevor es passiert |
+| **I1** | CHECK-Constraints / Trigger (z. B. „`orders.total` darf nach Zahlung nicht sinken“), `audit_log` append-only | deterministischeGeschäftsregel-Integrität gegen W3/W5 |
+| **I2** | Row-Caps / `statement_timeout` / `LIMIT`-Enforcement | gegen Massen-Exfiltration (LLM10-Aspekt) |
+| **I3** | Dry-Run + Human-Approval für Hochrisiko-Writes (Transaktion, Diff zeigen, dann `COMMIT`) | **Assurance**: Nutzer sieht *was* geändert würde, bevor es passiert |
 
 ---
 
@@ -320,7 +320,7 @@ probabilistischen Layer ist präzise abgegrenzt (Spalten-/Paraphrase-Leak + S1).
 ## 7. Experiment-Matrix (Konfiguration × Ziel)
 
 Konfigurationen (inkrementell): **D0** · **DA** · **DB** · **DC-a** · **DC-b** ·
-**DC-c** · **D++ (DA+DB+DC-a+DC-b+DC-c)** · **I6 (Referenz-Obergrenze)**.
+**DC-c** · **D++ (DA+DB+DC-a+DC-b+DC-c)** · **DT (Referenz-Obergrenze)**.
 
 Ziele: **G-R1 · G-R2 · G-W1 · G-W2 · G-W3 · G-S1**.
 
@@ -329,7 +329,7 @@ False-Positive-Rate auf dem Legitim-Anfragen-Set.
 
 Erwartungsbild (qualitativ, zu verifizieren):
 
-| Ziel | DA/DB | DC | I6 |
+| Ziel | DA/DB | DC | DT |
 |------|:--:|:--:|:--:|
 | G-R1 Cross-Tenant-Read | teilweise | **0 (DC-b)** | 0 |
 | G-R2 Column-Read | teilweise | **0 (DC-c)** | 0 |
@@ -347,7 +347,7 @@ Erwartungsbild (qualitativ, zu verifizieren):
 
 - **Probabilistische Layer (DA/DB):** nur Statistik („hält in X %") — ein
   erfolgreicher Jailbreak genügt; Skepsis berechtigt.
-- **Deterministische Layer (DC, I6, I5):** strukturelle, **beweisbare** Garantie.
+- **Deterministische Layer (DC, DT, I1):** strukturelle, **beweisbare** Garantie.
   Die DB gibt fremde Zeilen physisch nicht heraus und akzeptiert verbotene Writes
   nicht — unabhängig vom LLM-Output, auf einer Ebene unterhalb des Modells.
 - **Externe Prüfbarkeit:** Der Beweis ist der deterministische Layer selbst
@@ -355,7 +355,7 @@ Erwartungsbild (qualitativ, zu verifizieren):
   eine vom System erzeugte Anzeige. Provenance-/Audit-Anzeige (welche Tabellen/
   Tenants berührt wurden) ist eine *Usability-Hilfe*, kein Beweis — ein
   kompromittiertes System könnte sie fälschen.
-- **I9 (Dry-Run/Approval)** macht Hochrisiko-Writes für den Nutzer sichtbar,
+- **I3 (Dry-Run/Approval)** macht Hochrisiko-Writes für den Nutzer sichtbar,
   bevor sie wirken — anschaulicher Vertrauensbaustein.
 
 ---
@@ -367,7 +367,7 @@ Erwartungsbild (qualitativ, zu verifizieren):
 - **FF2 (Kosten):** inkrementelle Latenz/Energie je Layer; DC erwartet günstig,
   DB teuer (zweiter Modell-Call).
 - **FF3 (Architektur vs. Modell):** DC (deterministisch) vs. DA/DB
-  (probabilistisch) — Kernachse; I6 als architektonische Konsequenz/Obergrenze.
+  (probabilistisch) — Kernachse; DT als architektonische Konsequenz/Obergrenze.
 
 ---
 
@@ -377,7 +377,7 @@ Erwartungsbild (qualitativ, zu verifizieren):
       Spalten-Grants/Views + Canary-Datensätze pro Sensitivitätsstufe.
 - [ ] Identitäts-Propagation spezifizieren: LDAP/AD-Lookup → Gateway →
       `SET app.current_user / app.current_tenant` → RLS.
-- [ ] I6-Template-Katalog definieren (welche parametrisierten Operationen je
+- [ ] DT-Template-Katalog definieren (welche parametrisierten Operationen je
       Rolle) — zugleich die Spezifikation der Produktivarchitektur.
 - [ ] Legitim-Anfragen-Set (Read + Write) für False-Positive-Rate / Usability.
 - [ ] Oracles je Ziel implementieren (Canary-Match, State-Diff für Writes,
@@ -385,6 +385,6 @@ Erwartungsbild (qualitativ, zu verifizieren):
 - [ ] Statistik: n Wiederholungen, Signifikanztests für H1a/H3a′.
 - [ ] `bedrohungsmodell.md` & `brainstorm2.md` an diese Fassung angleichen
       (Hypothesen H3a/H3c → H3a′/H3c′, Schreib-Angriffe, DC-Stufen).
-- [ ] Folien aktualisieren (Schreib-Angriffe, DC-Stufen, I6 als Empfehlung).
+- [ ] Folien aktualisieren (Schreib-Angriffe, DC-Stufen, DT als Empfehlung).
 - [x] OWASP-Bezeichnungen final gegen `LLMAll_en-US_FINAL` verifiziert (v2.0,
       offizielle Titel LLM01/02/05/06:2025 bestätigt).

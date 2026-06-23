@@ -34,4 +34,4 @@ This directory contains the FastAPI gateway implementation for the LLM security 
    - DA: Defense A (System Prompt)
    - DB: Defense B (Input Guardrail)
    - DC-a/b/c: Data confidentiality layers
-   - I6: Template-based operations
+   - DT: Template-based operations

@@ -9,7 +9,7 @@ Nutzer wissen kann, dass die Abwehr greift**.
 > **Hinweis (12. Juni 2026):** Leitfassung ist
 > `angriffsvektoren-und-verteidigung.md`. Diese Datei wurde angeglichen:
 > **Schreib-/Modifikations-Angriffe** (W1–W5, LLM06), **dreistufige
-> Infrastruktur-Verteidigung DC-a/b/c** und **I6** (parametrisierte Templates)
+> Infrastruktur-Verteidigung DC-a/b/c** und **DT** (parametrisierte Templates)
 > sind ergänzt. Vollständige Erfolgsziele (G-*), Experiment-Matrix und
 > korrigierte Hypothesen H3a′/H3c′ siehe Leitdatei.
 
@@ -148,7 +148,7 @@ einzeln und in Kombination**. Jeder Layer ist unabhängig an-/abschaltbar.
 | **DC-b — Row-Level Security** | Authentifizierte Rolle (LDAP/AD) bis in die DB-Session propagiert; RLS `USING` (Lese-Isolation) **+** `WITH CHECK` (Schreib-Isolation) filtern **pro Anfrage** gemäß Matrix | Infrastruktur (**deterministisch**) | Kern (Herzstück) |
 | **DC-c — Column-Masking** | Sensible Spalten (`card_token`, `internal_cost`) physisch aus zugänglicher Sicht entfernen/maskieren (Spalten-`GRANT` oder View) | Infrastruktur (**deterministisch**) | Kern |
 | **D++ — Defense-in-Depth** | Sequentielle Kombination DA + DB + DC-a/b/c | gestaffelt | Kern |
-| **I6 — Eingeschränkte Tool-Schnittstelle** | Statt freiem SQL nur **geprüfte, parametrisierte Query-Templates** (Function-Calling); LLM füllt nur Parameter → eliminiert LLM05 konstruktionsbedingt | Architektur (**deterministisch**) | Referenz-Obergrenze **+ empfohlene Produktivarchitektur** |
+| **DT — Eingeschränkte Tool-Schnittstelle** | Statt freiem SQL nur **geprüfte, parametrisierte Query-Templates** (Function-Calling); LLM füllt nur Parameter → eliminiert LLM05 konstruktionsbedingt | Architektur (**deterministisch**) | Referenz-Obergrenze **+ empfohlene Produktivarchitektur** |
 | *DF — Output-/Egress-Filter* | Antwort vor Auslieferung auf fremde **Canary-Token / PII-Muster** scannen, ggf. blocken | Filter (deterministisch) | *Kandidat (optional)* |
 
 > **DC-b ist das Herzstück:** RLS hat zwei Hälften — `USING` bestimmt *was du
@@ -159,10 +159,10 @@ einzeln und in Kombination**. Jeder Layer ist unabhängig an-/abschaltbar.
 > nur die eigenen Tenant-Zeilen. Das ist der Kern von FF3/H3c′ (deterministisch
 > vs. probabilistisch).
 >
-> **I6** ist die architektonische Konsequenz: Würde die Idee real im Unternehmen
-> eingesetzt, müsste sie als I6 implementiert werden — dann entfällt freies
+> **DT** ist die architektonische Konsequenz: Würde die Idee real im Unternehmen
+> eingesetzt, müsste sie als DT implementiert werden — dann entfällt freies
 > NL-to-SQL vollständig (IT-sicherheitstechnisch überlegen). Im Experiment dient
-> I6 als obere Vergleichsgrenze, nicht als gleichwertiger NL-to-SQL-Messlayer.
+> DT als obere Vergleichsgrenze, nicht als gleichwertiger NL-to-SQL-Messlayer.
 > Details: `angriffsvektoren-und-verteidigung.md` §5.
 
 ---
@@ -182,7 +182,7 @@ n Wiederholungen. → *Wie oft* hält eine Schicht, statistisch belegt.
 > nur eine Statistik („hält in 97 %"). Ein einziger erfolgreicher Jailbreak
 > genügt → die Skepsis des Nutzers ist berechtigt.
 >
-> Bei **deterministischen** Schichten (DC-a/b/c, I6) ist eine **strukturelle
+> Bei **deterministischen** Schichten (DC-a/b/c, DT) ist eine **strukturelle
 > Garantie** möglich: Die Datenbank gibt fremde Zeilen *physisch nicht* heraus
 > und akzeptiert verbotene Writes nicht — unabhängig vom LLM-Output, weil die
 > Filterung auf einer Ebene passiert, die das LLM nicht beeinflussen kann. Das
@@ -211,7 +211,7 @@ Ergänzend zur Transparenz:
   Schreiben) → präzises ASR pro Layer und Erfolgsziel.
 - **FF2 (Kosten):** Jeder Layer wird inkrementell auf Latenz/Energie gemessen.
 - **FF3 (Architektur vs. Modell):** DC-a/b/c (deterministisch) vs. DA/DB
-  (probabilistisch) — die zentrale Vergleichsachse; I6 als architektonische
+  (probabilistisch) — die zentrale Vergleichsachse; DT als architektonische
   Obergrenze. Korrigierte Hypothesen H3a′/H3c′ siehe
   `angriffsvektoren-und-verteidigung.md` §6.
 
@@ -223,9 +223,9 @@ Ergänzend zur Transparenz:
       Spalten-Grants/Views + Canary-Datensätze pro Sensitivitätsstufe finalisieren.
 - [ ] Identitäts-Propagation spezifizieren: LDAP/AD-Lookup → Gateway →
       DB-Session-Variable (`SET app.current_user / app.current_tenant`) → RLS.
-- [ ] I6-Template-Katalog definieren (parametrisierte Operationen je Rolle) —
+- [ ] DT-Template-Katalog definieren (parametrisierte Operationen je Rolle) —
       zugleich Spezifikation der Produktivarchitektur.
 - [ ] „Legitime Anfragen"-Set (Read + Write) definieren (für False-Positive-Rate /
       Usability).
 - [ ] Mapping-Satz Plattform→DATEV final in die Einleitung übernehmen.
-- [ ] Folien aktualisieren (Schreib-Angriffe, DC-Stufen, I6 als Empfehlung).
+- [ ] Folien aktualisieren (Schreib-Angriffe, DC-Stufen, DT als Empfehlung).
