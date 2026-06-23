@@ -76,7 +76,7 @@ def _build_llm_payload(prompt: str, system_prompt: Optional[str]) -> Dict[str, A
     return {
         "prompt": final_prompt,
         "temperature": CONFIG.llm_temperature,
-        "max_tokens": 500,
+        "max_tokens": 1500,
     }
 
 
@@ -97,8 +97,14 @@ def _build_model_instruction(user_prompt: str, role: str) -> str:
     )
 
 
+def _strip_thinking(text: str) -> str:
+    """Remove <think>...</think> blocks emitted by reasoning models (e.g. Qwen3)."""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+
 def _extract_sql_or_template(text: str) -> Dict[str, Any]:
     payload: Dict[str, Any] = {}
+    text = _strip_thinking(text)
 
     # First preference: strict JSON object in response body.
     try:
