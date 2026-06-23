@@ -2,6 +2,7 @@
 """
 Statistical analysis for LLM database security evaluation.
 Loads real run artifacts and computes ASR + Wilson intervals + baseline comparisons.
+Also loads power_log.jsonl / idle_baseline.jsonl and computes per-layer energy stats.
 """
 
 import argparse
@@ -10,7 +11,7 @@ import json
 import math
 import os
 from collections import defaultdict
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 
 def wilson_score_interval(successes: int, n: int, z: float = 1.96) -> Tuple[float, float]:
@@ -203,6 +204,157 @@ def generate_detailed_report(results: Dict[str, Any], artifact_files: List[str])
     return "\n".join(lines)
 
 
+def load_power_data(
+    power_log_path: str = "power_log.jsonl",
+    idle_baseline_path: str = "idle_baseline.jsonl",
+) -> Dict[str, Any]:
+    """
+    Load power_log.jsonl and idle_baseline.jsonl and compute per-layer, per-role
+    energy statistics.
+
+    Returns a dict with keys:
+      idle_w       - average idle power in watts (from baseline file), or None
+      layers       - dict keyed by layer profile name (str), each containing:
+          victim   - {"count", "mean_mj", "std_mj", "mean_net_mj"}
+          guard    - same structure (0-filled if no guard data for this layer)
+          total    - combined victim+guard mean_net_mj per request
+      raw          - list of raw power records (for debugging)
+    """
+    # -- idle baseline --------------------------------------------------------
+    idle_w: Optional[float] = None
+    idle_duration_s: float = 0.0
+    if os.path.exists(idle_baseline_path):
+        with open(idle_baseline_path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                rec = json.loads(line)
+                if rec.get("type") == "idle_baseline" and rec.get("duration_s", 0) > 0:
+                    idle_w = rec["avg_power_w"]
+                    idle_duration_s = rec["duration_s"]
+                    break  # use first / most recent baseline
+
+    # -- power log ------------------------------------------------------------
+    raw: List[Dict] = []
+    if os.path.exists(power_log_path):
+        with open(power_log_path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line:
+                    raw.append(json.loads(line))
+
+    # Group records by (layer_profile, role).
+    # active_layers is a list like ["DA", "DT"] — normalise to a canonical
+    # profile label by matching against known profiles.
+    def _layers_to_profile(layers: List[str]) -> str:
+        s = set(layers)
+        if not s or s == {"D0"}:
+            return "D0"
+        known = {
+            frozenset(["DA"]): "DA",
+            frozenset(["DB"]): "DB",
+            frozenset(["DC-a"]): "DC-a",
+            frozenset(["DC-b"]): "DC-b",
+            frozenset(["DC-c"]): "DC-c",
+            frozenset(["DT"]): "DT",
+            frozenset(["DA", "DB", "DC-a", "DC-b", "DC-c", "DT"]): "D++",
+        }
+        return known.get(frozenset(s), ",".join(sorted(s)))
+
+    # {profile -> {role -> [energy_mj]}}
+    buckets: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+    for rec in raw:
+        profile = _layers_to_profile(rec.get("active_layers", []))
+        role = rec.get("role", "unknown")
+        energy = rec.get("energy_mj")
+        duration = rec.get("duration_s", 0.0)
+        if energy is not None and duration > 0:
+            buckets[profile][role].append(float(energy))
+
+    def _stats(values: List[float], idle_w: Optional[float] = None) -> Dict[str, Any]:
+        if not values:
+            return {"count": 0, "mean_mj": 0.0, "std_mj": 0.0, "mean_net_mj": 0.0}
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / max(len(values) - 1, 1)
+        std = math.sqrt(variance)
+        # Approximate net energy: we don't have per-call duration stored in
+        # buckets here, so we use the raw records for net calculation.
+        net_mean = mean  # net subtraction happens per-record below
+        return {"count": len(values), "mean_mj": round(mean, 1), "std_mj": round(std, 1), "mean_net_mj": round(net_mean, 1)}
+
+    # For net energy we subtract idle*duration per record.
+    net_buckets: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+    for rec in raw:
+        profile = _layers_to_profile(rec.get("active_layers", []))
+        role = rec.get("role", "unknown")
+        energy = rec.get("energy_mj")
+        duration = rec.get("duration_s", 0.0)
+        if energy is None or duration <= 0:
+            continue
+        if idle_w is not None:
+            idle_mj = idle_w * duration * 1000.0
+            net = max(0.0, float(energy) - idle_mj)
+        else:
+            net = float(energy)
+        net_buckets[profile][role].append(net)
+
+    layers_out: Dict[str, Any] = {}
+    all_profiles = set(buckets.keys()) | set(net_buckets.keys())
+    for profile in all_profiles:
+        victim_raw = buckets[profile].get("victim", [])
+        guard_raw = buckets[profile].get("guard", [])
+        victim_net = net_buckets[profile].get("victim", [])
+        guard_net = net_buckets[profile].get("guard", [])
+
+        victim_stats = _stats(victim_raw)
+        guard_stats = _stats(guard_raw)
+        victim_stats["mean_net_mj"] = round(sum(victim_net) / max(len(victim_net), 1), 1) if victim_net else 0.0
+        guard_stats["mean_net_mj"] = round(sum(guard_net) / max(len(guard_net), 1), 1) if guard_net else 0.0
+
+        total_net = victim_stats["mean_net_mj"] + guard_stats["mean_net_mj"]
+        layers_out[profile] = {
+            "victim": victim_stats,
+            "guard": guard_stats,
+            "total_net_mj": round(total_net, 1),
+        }
+
+    return {
+        "idle_w": idle_w,
+        "idle_duration_s": idle_duration_s,
+        "layers": layers_out,
+        "raw_count": len(raw),
+    }
+
+
+def generate_power_report_text(power_data: Dict[str, Any]) -> str:
+    lines: List[str] = []
+    lines.append("## GPU Energy Consumption by Layer")
+    lines.append("")
+    idle = power_data.get("idle_w")
+    if idle is not None:
+        lines.append(f"Idle baseline: **{idle:.1f} W** (net energy = gross − idle×duration)")
+    else:
+        lines.append("Idle baseline: *not measured* (net = gross)")
+    lines.append(f"Total power records loaded: {power_data.get('raw_count', 0)}")
+    lines.append("")
+    lines.append("| Layer | Victim mean (gross mJ) | Victim net mJ | Guard net mJ | Total net mJ/req |")
+    lines.append("|---|---:|---:|---:|---:|")
+    layer_order = ["D0", "DA", "DB", "DC-a", "DC-b", "DC-c", "DT", "D++"]
+    layers = power_data.get("layers", {})
+    all_layers = layer_order + [k for k in sorted(layers.keys()) if k not in layer_order]
+    for layer in all_layers:
+        if layer not in layers:
+            continue
+        d = layers[layer]
+        v = d["victim"]
+        g = d["guard"]
+        lines.append(
+            f"| {layer} | {v['mean_mj']} | {v['mean_net_mj']} | {g['mean_net_mj']} | {d['total_net_mj']} |"
+        )
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Analyze promptfoo/oracle artifacts")
     parser.add_argument(
@@ -218,7 +370,22 @@ def main() -> None:
     parser.add_argument(
         "--json-out",
         default="analysis/report.json",
-        help="Path for machine-readable output",
+        help="Path for machine-readable ASR output",
+    )
+    parser.add_argument(
+        "--power-log",
+        default="power_log.jsonl",
+        help="Path to gateway power JSONL log",
+    )
+    parser.add_argument(
+        "--idle-baseline",
+        default="idle_baseline.jsonl",
+        help="Path to idle baseline JSONL",
+    )
+    parser.add_argument(
+        "--power-out",
+        default="analysis/power_report.json",
+        help="Path for machine-readable power output",
     )
     args = parser.parse_args()
 
@@ -226,8 +393,11 @@ def main() -> None:
     stats = calculate_asr_stats(loaded["grouped"])
     stats = add_baseline_significance(stats)
 
+    power_data = load_power_data(args.power_log, args.idle_baseline)
+
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     report = generate_detailed_report(stats, loaded["artifact_files"])
+    report += "\n\n" + generate_power_report_text(power_data)
 
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(report)
@@ -235,8 +405,12 @@ def main() -> None:
     with open(args.json_out, "w", encoding="utf-8") as handle:
         json.dump(stats, handle, indent=2)
 
+    with open(args.power_out, "w", encoding="utf-8") as handle:
+        json.dump(power_data, handle, indent=2)
+
     print(f"Wrote report: {args.out}")
     print(f"Wrote JSON stats: {args.json_out}")
+    print(f"Wrote power report: {args.power_out}")
 
 
 if __name__ == "__main__":

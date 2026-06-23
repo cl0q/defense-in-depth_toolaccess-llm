@@ -91,9 +91,125 @@ def plot_goal_heatmap(report: Dict, out_dir: str) -> None:
     plt.close(fig)
 
 
+_LAYER_ORDER = ["D0", "DA", "DB", "DC-a", "DC-b", "DC-c", "DT", "D++"]
+
+
+def _ordered_layers(layers: Dict) -> List[str]:
+    ordered = [l for l in _LAYER_ORDER if l in layers]
+    ordered += [l for l in sorted(layers.keys()) if l not in _LAYER_ORDER]
+    return ordered
+
+
+def plot_energy_by_layer(power_report: Dict, out_dir: str) -> None:
+    """Grouped bar chart: per-request net energy (victim vs guard) for each layer."""
+    layers = power_report.get("layers", {})
+    if not layers:
+        print("No power data; skipping energy_by_layer plot")
+        return
+
+    ordered = _ordered_layers(layers)
+    victim_net = [layers[l]["victim"]["mean_net_mj"] for l in ordered]
+    guard_net = [layers[l]["guard"]["mean_net_mj"] for l in ordered]
+
+    x = np.arange(len(ordered))
+    width = 0.38
+
+    fig, ax = plt.subplots(figsize=(11, 5))
+    b1 = ax.bar(x - width / 2, victim_net, width, label="Victim (net)", color="#1f77b4", alpha=0.88)
+    b2 = ax.bar(x + width / 2, guard_net, width, label="Guard (net)", color="#ff7f0e", alpha=0.88)
+
+    ax.set_title("Net GPU Energy per Request by Defense Layer")
+    ax.set_xlabel("Layer")
+    ax.set_ylabel("Energy (mJ, idle-subtracted)")
+    ax.set_xticks(x)
+    ax.set_xticklabels(ordered)
+    ax.grid(axis="y", alpha=0.3)
+    ax.legend()
+
+    for bars in (b1, b2):
+        for bar in bars:
+            h = bar.get_height()
+            if h > 0:
+                ax.text(bar.get_x() + bar.get_width() / 2, h, f"{h:.0f}", ha="center", va="bottom", fontsize=7)
+
+    idle = power_report.get("idle_w")
+    subtitle = f"idle baseline {idle:.1f} W subtracted" if idle is not None else "no idle baseline (gross energy)"
+    ax.annotate(subtitle, xy=(0.99, 0.97), xycoords="axes fraction", ha="right", va="top", fontsize=8, color="#555")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "energy_by_layer.png"), dpi=200)
+    plt.close(fig)
+
+
+def plot_total_energy_by_layer(power_report: Dict, out_dir: str) -> None:
+    """Single bar per layer: total net energy per request (victim + guard)."""
+    layers = power_report.get("layers", {})
+    if not layers:
+        return
+
+    ordered = _ordered_layers(layers)
+    totals = [layers[l]["total_net_mj"] for l in ordered]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    bars = ax.bar(ordered, totals, color="#2ca02c", alpha=0.85)
+    ax.set_title("Total Net GPU Energy per Request by Layer")
+    ax.set_xlabel("Layer")
+    ax.set_ylabel("Energy (mJ/request, net)")
+    ax.grid(axis="y", alpha=0.3)
+    for bar, value in zip(bars, totals):
+        if value > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, value, f"{value:.0f}", ha="center", va="bottom", fontsize=8)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "total_energy_by_layer.png"), dpi=200)
+    plt.close(fig)
+
+
+def plot_security_energy_tradeoff(asr_report: Dict, power_report: Dict, out_dir: str) -> None:
+    """
+    Scatter of mean ASR (security: lower=better) vs total net energy (cost) per
+    layer. The key thesis chart: which layers buy the most security per joule.
+    """
+    layers = power_report.get("layers", {})
+    if not layers or not asr_report:
+        print("Missing ASR or power data; skipping tradeoff plot")
+        return
+
+    points = []
+    for layer in _ordered_layers(layers):
+        entries = list(asr_report.get(layer, {}).values())
+        if not entries:
+            continue
+        mean_asr = sum(e["mean_asr"] for e in entries) / len(entries)
+        energy = layers[layer]["total_net_mj"]
+        points.append((layer, energy, mean_asr))
+
+    if not points:
+        print("No overlapping layers between ASR and power data; skipping tradeoff plot")
+        return
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    xs = [p[1] for p in points]
+    ys = [p[2] for p in points]
+    ax.scatter(xs, ys, s=90, color="#d62728", zorder=3)
+    for layer, energy, asr in points:
+        ax.annotate(layer, (energy, asr), textcoords="offset points", xytext=(6, 6), fontsize=9)
+
+    ax.set_title("Security vs. Energy Trade-off by Layer")
+    ax.set_xlabel("Total net energy per request (mJ)")
+    ax.set_ylabel("Mean ASR (lower = more secure)")
+    ax.set_ylim(0, 1)
+    ax.grid(alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "security_energy_tradeoff.png"), dpi=200)
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render plots from analysis JSON report")
-    parser.add_argument("--input", default="analysis/report.json", help="Path to report JSON")
+    parser.add_argument("--input", default="analysis/report.json", help="Path to ASR report JSON")
+    parser.add_argument("--power-input", default="analysis/power_report.json", help="Path to power report JSON")
     parser.add_argument("--out-dir", default="analysis/plots", help="Output directory for plots")
     args = parser.parse_args()
 
@@ -102,6 +218,15 @@ def main() -> None:
 
     plot_config_asr(report, args.out_dir)
     plot_goal_heatmap(report, args.out_dir)
+
+    # Power plots (optional — only if power_report.json exists).
+    if os.path.exists(args.power_input):
+        power_report = _load_report(args.power_input)
+        plot_energy_by_layer(power_report, args.out_dir)
+        plot_total_energy_by_layer(power_report, args.out_dir)
+        plot_security_energy_tradeoff(report, power_report, args.out_dir)
+    else:
+        print(f"No power report at {args.power_input}; skipping energy plots")
 
     print(f"Wrote plots in {args.out_dir}")
 
