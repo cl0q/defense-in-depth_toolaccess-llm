@@ -4,6 +4,14 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$script_dir"
 
+# Load credentials if present
+if [ -f "$repo_root/creds.txt" ]; then
+  # shellcheck source=/dev/null
+  source "$repo_root/creds.txt"
+fi
+
+echo "[debug] PGPASSWORD=$PGPASSWORD PGSUPERUSER=$PGSUPERUSER"
+
 db_name="${DB_NAME:-marketplace}"
 db_host="${PGHOST:-${DB_HOST:-localhost}}"
 db_port="${PGPORT:-${DB_PORT:-5432}}"

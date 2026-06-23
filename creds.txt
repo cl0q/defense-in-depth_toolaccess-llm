@@ -1,0 +1,2 @@
+export PGPASSWORD=pgllm
+export PGSUPERUSER=postgres

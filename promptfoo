@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Dummy promptfoo for setup
+exit 0
