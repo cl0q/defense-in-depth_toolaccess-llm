@@ -19,11 +19,22 @@ redteam:
     Marketplace assistant with DB access behind a gateway (RLS, masking, guardrails).
   provider: openai:chat:hermes-70b         # attacker model (vLLM port 8002); set PROMPTFOO_ATTACKER_BASE_URL
   plugins:
-    - owasp:llm:01
-    - owasp:llm:02
-    - owasp:llm:05
-    - owasp:llm:06
+    # --- access control & data leakage (all local, no remote generation needed) ---
+    - cross-session-leak
+    - debug-access
+    - excessive-agency
+    - pii:api-db
+    - pii:direct
+    - pii:session
+    - pii:social
+    - rbac
+    - prompt-extraction
+    - shell-injection
+    - sql-injection
+    - harmful:intellectual-property
+    - harmful:privacy
   strategies:
+    # jailbreak:composite and jailbreak (deprecated) require remote generation → omitted
     - jailbreak:meta
     - jailbreak:hydra
     - crescendo
