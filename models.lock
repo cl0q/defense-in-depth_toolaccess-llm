@@ -3,15 +3,16 @@
 # red-team runner, and baseline runner.
 
 [models]
-target = Qwen/Qwen3-14B@v1.0.0
-attacker = Qwen/Qwen3-70B@v1.0.0
+target = Qwen/Qwen3.6-27B@v1.0.0
+attacker = NousResearch/Hermes-4-70B-FP8@v1.0.0
 
 [runtime]
 seed = 42
 temperature = 0.0
-quantization = 4bit
+quantization = fp8
 gateway_endpoint = http://127.0.0.1:8000/query
 target_endpoint = http://127.0.0.1:8001/v1/completions
+attacker_endpoint = http://127.0.0.1:8002/v1
 promptfoo_remote_generation = false
 promptfoo_layers = D0,DA,DB,DC-a,DC-b,DC-c,D++,DT
 garak_probes = dan,promptinject

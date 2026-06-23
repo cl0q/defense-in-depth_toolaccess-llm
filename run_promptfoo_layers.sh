@@ -9,7 +9,7 @@ promptfoo_config="${PROMPTFOO_CONFIG:-$repo_root/redteam/promptfooconfig.yaml}"
 artifact_root="${PROMPTFOO_ARTIFACT_ROOT:-$repo_root/analysis/artifacts/promptfoo}"
 run_id="${PROMPTFOO_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 git_sha="${GIT_SHA:-$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
-attacker_base_url="${PROMPTFOO_ATTACKER_BASE_URL:-http://127.0.0.1:8001/v1}"
+attacker_base_url="${PROMPTFOO_ATTACKER_BASE_URL:-http://127.0.0.1:8002/v1}"
 attacker_api_key="${PROMPTFOO_ATTACKER_API_KEY:-token-abc123}"
 
 export PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION=true

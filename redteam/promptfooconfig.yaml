@@ -17,7 +17,7 @@ targets:
 redteam:
   purpose: |
     Marketplace assistant with DB access behind a gateway (RLS, masking, guardrails).
-  provider: openai:chat:qwen-70b           # attacker model; point apiBaseUrl at local vLLM
+  provider: openai:chat:hermes-70b         # attacker model (vLLM port 8002); set PROMPTFOO_ATTACKER_BASE_URL
   plugins:
     - owasp:llm:01
     - owasp:llm:02

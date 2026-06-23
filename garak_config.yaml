@@ -18,17 +18,17 @@ run:
   generations: 1
   probe_tags:
     - baseline
-    - qwen3-14b
+    - qwen3-27b
 
 plugins:
   target_type: openai
-  target_name: qwen3-14b
+  target_name: qwen3-27b
   probe_spec: dan,promptinject
   detector_spec: auto
   extended_detectors: true
 
 reporting:
-  report_prefix: garak_results/baseline/qwen3-14b
+  report_prefix: garak_results/baseline/qwen3-27b
   report_dir: garak_results
   show_100_pass_modules: true
   show_top_group_score: true
