@@ -3,7 +3,7 @@
 # red-team runner, and baseline runner.
 
 [models]
-target = Qwen/Qwen3.6-27B@v1.0.0
+target = Qwen/Qwen3.6-27B-FP8@v1.0.0
 attacker = NousResearch/Hermes-4-70B-FP8@v1.0.0
 
 [runtime]

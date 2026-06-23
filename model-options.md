@@ -27,7 +27,7 @@ headroom for both** and keeps each model's KV cache to ~10–15 GB.
 | Role | Model | HF ID | Port | `--gpu-memory-utilization` | `--max-model-len` |
 |------|-------|-------|------|----------------------------|-------------------|
 | **Attacker** | Hermes 4 70B FP8 | `NousResearch/Hermes-4-70B-FP8` | 8002 | `0.62` | `32768` |
-| **Victim** | Qwen3.6 27B | `Qwen/Qwen3.6-27B` | 8001 | `0.28` | `32768` |
+| **Victim** | Qwen3.6 27B FP8 | `Qwen/Qwen3.6-27B-FP8` | 8001 | `0.28` | `32768` |
 
 **VRAM:** ~70 + ~28 + KV cache ≈ 127 GB / 141 → ~14 GB headroom.
 
@@ -67,7 +67,7 @@ attacks? Does model intelligence compensate for (or undermine) the defenses?
 
 | | Option 1 | Option 2 |
 |---|----------|----------|
-| `TARGET_MODEL` (victim) | `Qwen/Qwen3.6-27B` | `Qwen/Qwen3.6-72B-FP8` |
+| `TARGET_MODEL` (victim) | `Qwen/Qwen3.6-27B-FP8` | `Qwen/Qwen3.6-72B-FP8` |
 | `VLLM_SERVED_MODEL_NAME` | `qwen3-27b` | `qwen3-72b` |
 | Attacker model | `NousResearch/Hermes-4-70B-FP8` | `Qwen/Qwen3-8B-FP8` |
 | `PROMPTFOO_ATTACKER_BASE_URL` | `http://127.0.0.1:8002/v1` | `http://127.0.0.1:8002/v1` |
@@ -87,7 +87,7 @@ don't stack RAM (the OOM trap in `vllm-serving-manual.md`).
 ```bash
 tmux new -s vllm-victim
 export MAX_JOBS=4 NVCC_THREADS=1 VLLM_DEEP_GEMM_WARMUP=skip
-vllm serve Qwen/Qwen3.6-27B \
+vllm serve Qwen/Qwen3.6-27B-FP8 \
   --host 0.0.0.0 --port 8001 --served-model-name qwen3-27b \
   --api-key token-abc123 \
   --max-model-len 32768 --gpu-memory-utilization 0.28 \

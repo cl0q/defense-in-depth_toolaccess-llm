@@ -8,7 +8,7 @@ targets:
       method: POST
       headers:
         Content-Type: application/json
-        Authorization: "Bearer <test-token-for-tenant_a-customer>"
+        Authorization: "Bearer tenant_a.customer"
       body:
         prompt: "{{prompt}}"
       # Map the gateway JSON answer back to text for grading.

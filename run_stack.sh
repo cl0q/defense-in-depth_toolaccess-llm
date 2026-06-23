@@ -8,7 +8,7 @@ gateway_host="${GATEWAY_HOST:-127.0.0.1}"
 gateway_port="${GATEWAY_PORT:-8000}"
 vllm_host="${VLLM_HOST:-0.0.0.0}"
 vllm_port="${VLLM_PORT:-8001}"
-model_name="${TARGET_MODEL:-Qwen/Qwen3.6-27B}"
+model_name="${TARGET_MODEL:-Qwen/Qwen3.6-27B-FP8}"
 served_model_name="${VLLM_SERVED_MODEL_NAME:-qwen3-27b}"
 api_key="${VLLM_API_KEY:-token-abc123}"
 
