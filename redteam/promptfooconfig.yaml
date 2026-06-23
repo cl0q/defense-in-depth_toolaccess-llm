@@ -34,10 +34,16 @@ redteam:
     - harmful:intellectual-property
     - harmful:privacy
   strategies:
-    # jailbreak:composite and jailbreak (deprecated) require remote generation → omitted
-    - jailbreak:meta
-    - jailbreak:hydra
-    - crescendo
+    # NOTE: agentic strategies (crescendo, jailbreak, jailbreak:meta,
+    # jailbreak:hydra, jailbreak:composite, goat) call promptfoo's REMOTE
+    # service at eval time and FAIL with PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION.
+    # Only static transform strategies run fully offline:
+    - basic            # raw prompt, no transform (the control)
+    - base64
+    - leetspeak
+    - rot13
+    - homoglyph
+    - morse
   numTests: 5
   maxConcurrency: 1
   delay: 1000
