@@ -7,3 +7,7 @@ passlib==1.7.4
 bcrypt==4.0.1
 psycopg2-binary==2.9.9
 requests==2.32.3
+# Phase 2: guard models
+transformers>=4.40.0
+# Phase 3: GPU power measurement
+pynvml>=11.5.0

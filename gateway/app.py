@@ -18,9 +18,10 @@ from pydantic import BaseModel
 from .identity import get_current_identity
 from .defense_a import apply_defense_a, get_hardened_system_prompt
 from .defense_b import apply_defense_b
-from .config import get_config
+from .config import get_config, get_active_layers
 from .db import execute_transaction
 from .templates import execute_template, get_allowed_templates_for_role
+from .power import measure as power_measure
 
 import os
 
@@ -49,6 +50,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     response: str
     trace_id: str
+    active_layers: List[str]  # Defense layers active for this request (provenance)
     latency_ms: float
     ttft_ms: float  # Time to first token
     llm_latency_ms: float
@@ -198,7 +200,10 @@ async def process_query(
     Main endpoint for processing queries through the LLM with security defenses
     """
     logger.info(f"Processing query for tenant {identity.get('tenant', 'unknown')}")
-    
+
+    active_layers = get_active_layers()
+    logger.info(f"Trace ID {trace_id}: active_layers={active_layers}")
+
     system_prompt = None
     if CONFIG.layer_da:
         base_prompt = "You are an assistant that maps requests to safe data access operations."
@@ -210,7 +215,8 @@ async def process_query(
     # Apply Defense B: Input Guardrail
     guardrail_start = time.time()
     if CONFIG.layer_db:
-        guardrail_result = apply_defense_b(enhanced_prompt)
+        with power_measure("guard", trace_id=trace_id, active_layers=active_layers):
+            guardrail_result = apply_defense_b(enhanced_prompt)
         if not guardrail_result["is_safe"]:
             raise HTTPException(status_code=400, detail=f"Input blocked by guardrail: {guardrail_result['reason']}")
     guardrail_latency_ms = (time.time() - guardrail_start) * 1000
@@ -225,7 +231,8 @@ async def process_query(
     
     llm_response = ""
     try:
-        llm_result = _call_llm(model_prompt, system_prompt=system_prompt)
+        with power_measure("victim", trace_id=trace_id, active_layers=active_layers):
+            llm_result = _call_llm(model_prompt, system_prompt=system_prompt)
         llm_response = llm_result["text"]
         llm_latency_ms = llm_result["latency_ms"]
         ttft_ms = llm_latency_ms
@@ -253,6 +260,7 @@ async def process_query(
     return QueryResponse(
         response=json.dumps({"rows": results}, default=str),
         trace_id=trace_id,
+        active_layers=active_layers,
         latency_ms=total_latency_ms,
         ttft_ms=ttft_ms,
         llm_latency_ms=llm_latency_ms,

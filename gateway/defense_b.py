@@ -1,10 +1,18 @@
 """
 Defense B: Input Guardrail
 Implements input validation and filtering to detect and block unsafe inputs.
-This simulates integration with LlamaGuard or similar tools.
+
+Backend is selected via the GUARD_BACKEND environment variable:
+  regex       - keyword / regex scan (default, original baseline)
+  llamaguard  - Llama Guard 3-8B via vLLM (port 8003)
+  promptguard - Llama Prompt Guard 2-86M in-process via transformers
+  both        - both LLM guards; blocks if either fires
+
+See gateway/guards.py for LLM-guard implementation details.
 """
 
 import re
+import os
 from typing import Dict, List, Tuple
 
 # Categories for input classification (simplified)
@@ -83,17 +91,40 @@ UNSAFE_PATTERNS = [
 
 def apply_defense_b(input_text: str) -> Dict:
     """
-    Apply Defense B: Input Guardrail
-    Analyzes input for potentially unsafe content and returns a safety assessment.
-    
+    Apply Defense B: Input Guardrail.
+    Dispatches to the backend selected by the GUARD_BACKEND env var.
+
     Returns:
         Dict with keys:
         - is_safe: boolean indicating if input is safe
         - reason: string explaining the safety decision
         - category: string indicating input category
     """
-    # Convert to lowercase for easier pattern matching
-    text_lower = input_text.lower()
+    backend = os.environ.get("GUARD_BACKEND", "regex").lower()
+
+    if backend == "llamaguard":
+        from .guards import check_llamaguard
+        return check_llamaguard(input_text)
+
+    if backend == "promptguard":
+        from .guards import check_promptguard
+        return check_promptguard(input_text)
+
+    if backend == "both":
+        from .guards import check_llamaguard, check_promptguard
+        lg = check_llamaguard(input_text)
+        if not lg["is_safe"]:
+            return lg
+        pg = check_promptguard(input_text)
+        if not pg["is_safe"]:
+            return pg
+        return {"is_safe": True, "reason": "both guards passed", "category": "safe"}
+
+    # Default: regex backend (original logic, kept intact below).
+    return _apply_regex_guardrail(input_text)
+
+
+def _apply_regex_guardrail(input_text: str) -> Dict:
     
     # Check for unsafe keywords
     for keyword in UNSAFE_KEYWORDS:
