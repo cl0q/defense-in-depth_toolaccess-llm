@@ -22,9 +22,12 @@ from .config import get_config
 from .db import execute_transaction
 from .templates import execute_template, get_allowed_templates_for_role
 
+import os
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+_debug_llm = os.getenv("DEBUG_LLM", "0") == "1"
 
 app = FastAPI(
     title="LLM Gateway",
@@ -226,6 +229,8 @@ async def process_query(
         llm_response = llm_result["text"]
         llm_latency_ms = llm_result["latency_ms"]
         ttft_ms = llm_latency_ms
+        if _debug_llm:
+            logger.info("RAW LLM OUTPUT [trace=%s]: %r", trace_id, llm_response)
     except requests.RequestException as e:
         logger.error(f"LLM request failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to communicate with LLM endpoint")
