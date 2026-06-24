@@ -182,7 +182,7 @@ def _call_llm(prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any
     response = requests.post(
         CONFIG.llm_endpoint,
         json=payload,
-        timeout=30,
+        timeout=180,
     )
     llm_end_time = time.time()
     llm_call_duration = (llm_end_time - llm_start_time) * 1000
@@ -223,6 +223,10 @@ def _execute_from_model_output(model_output: Dict[str, Any], identity: Dict[str,
 
     if not isinstance(sql_params, list):
         raise HTTPException(status_code=400, detail="SQL params must be a list")
+
+    # The model uses PostgreSQL-style $1/$2 placeholders; psycopg2 needs %s.
+    # Rewrite $N → %s (in order) so execute() can bind the params list correctly.
+    sql_text = re.sub(r"\$\d+", "%s", sql_text)
 
     logger.info("Executing model SQL for role=%s trace_id=%s", role, trace_id)
     return execute_transaction([sql_text], sql_params, identity, trace_id=trace_id)
