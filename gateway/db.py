@@ -152,7 +152,7 @@ def execute_transaction(
                 for stmt in sql_statements:
                     if stmt.strip():  # Skip empty statements
                         sql_start_time = time.time()
-                        cur.execute(stmt, params)
+                        cur.execute(stmt, params if params else None)
                         sql_end_time = time.time()
                         sql_duration = (sql_end_time - sql_start_time) * 1000
                         logger.info("SQL execution time: %.2fms for query: %s...", sql_duration, stmt[:50])

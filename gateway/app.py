@@ -226,7 +226,19 @@ def _execute_from_model_output(model_output: Dict[str, Any], identity: Dict[str,
 
     # The model uses PostgreSQL-style $1/$2 placeholders; psycopg2 needs %s.
     # Rewrite $N → %s (in order) so execute() can bind the params list correctly.
-    sql_text = re.sub(r"\$\d+", "%s", sql_text)
+    sql_text, n_placeholders = re.subn(r"\$\d+", "%s", sql_text)
+
+    # A model that emits e.g. "WHERE tenant_id = $1" with params=[] would make
+    # psycopg2 raise IndexError. Reject the mismatch as a 400 (bad model output)
+    # instead of letting it surface as an opaque 500.
+    if n_placeholders != len(sql_params):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"SQL placeholder/parameter count mismatch: "
+                f"{n_placeholders} placeholder(s) but {len(sql_params)} param(s)"
+            ),
+        )
 
     logger.info("Executing model SQL for role=%s trace_id=%s", role, trace_id)
     return execute_transaction([sql_text], sql_params, identity, trace_id=trace_id)
