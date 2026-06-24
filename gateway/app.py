@@ -250,7 +250,9 @@ async def process_query(
         results = _execute_from_model_output(model_output, identity, trace_id)
         db_latency_ms = (time.time() - sql_start_time) * 1000
     except Exception as e:
-        logger.error(f"DB execution failed: {e}")
+        from fastapi import HTTPException as _HTTPException
+        detail = e.detail if isinstance(e, _HTTPException) else str(e)
+        logger.error("DB execution failed: %s", detail, exc_info=True)
         raise
     
     end_time = time.time()

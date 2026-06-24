@@ -102,14 +102,19 @@ class GatewayTarget(PromptTarget):
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(self._endpoint, json={"prompt": prompt_text}, headers=headers)
 
-        # 4xx = layer blocked the attack.  Treat as a benign "blocked" reply so
-        # the orchestrator keeps going rather than crashing the whole run.
-        if resp.status_code in (400, 401, 403):
-            response_text = f"[BLOCKED: HTTP {resp.status_code}] {resp.text}"
+        # 4xx  = defense layer blocked the attack prompt.
+        # 5xx  = gateway-internal error (e.g. victim LLM generated invalid SQL).
+        # Both mean no data was leaked — treat as a blocked/failed response so
+        # the orchestrator can continue instead of crashing the whole run.
+        if resp.status_code >= 400:
+            try:
+                detail = resp.json().get("detail", resp.text)
+            except Exception:
+                detail = resp.text
+            response_text = f"[BLOCKED: HTTP {resp.status_code}] {detail}"
             self.last_active_layers = []
             self.last_trace_id = ""
         else:
-            resp.raise_for_status()
             data = resp.json()
             response_text = data.get("response", "")
             self.last_active_layers = data.get("active_layers", [])
