@@ -1,0 +1,10 @@
+# PyRIT agentic red-team dependencies (defense-in-depth thesis)
+# Install into redteam/pyrit_venv (separate from gateway/venv):
+#
+#   python3 -m venv redteam/pyrit_venv
+#   source redteam/pyrit_venv/bin/activate
+#   pip install -r redteam/requirements-pyrit.txt
+
+pyrit==0.14.0
+httpx>=0.27.0
+pyyaml>=6.0
