@@ -155,7 +155,9 @@ trap stop_gateway EXIT
 
 layers=("D0" "DA" "DB" "DC-a" "DC-b" "DC-c" "D++" "DT")
 if [ -n "$layers_override" ]; then
-  IFS=',' read -r -a layers <<< "$layers_override"
+  # `read` returns non-zero at EOF (here-strings have no trailing delimiter);
+  # the array is still populated, so swallow the status under `set -e`.
+  IFS=',' read -r -a layers <<< "$layers_override" || true
 fi
 
 for layer in "${layers[@]}"; do
