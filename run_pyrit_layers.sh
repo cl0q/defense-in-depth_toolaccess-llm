@@ -133,7 +133,9 @@ stop_gateway() {
 
 start_gateway() {
   local log_file="$1"
-  ( cd "$repo_root" && PYTHONPATH=. "$gateway_python" -m uvicorn gateway.app:app \
+  local power_log_file="$2"
+  ( cd "$repo_root" && PYTHONPATH=. POWER_LOG_FILE="$power_log_file" \
+      "$gateway_python" -m uvicorn gateway.app:app \
       --host "$gateway_host" --port "$gateway_port" >>"$log_file" 2>&1 ) &
   gateway_pid=$!
 
@@ -169,6 +171,7 @@ for layer in "${layers[@]}"; do
   results_file="$layer_dir/pyrit.results.json"
   log_file="$layer_dir/run.log"
   gateway_log="$layer_dir/gateway.log"
+  power_log="$layer_dir/power_log.jsonl"
   db_file="$layer_dir/pyrit.db"
 
   echo "=== Layer ${layer}: applying defense profile ===" | tee "$log_file"
@@ -176,7 +179,7 @@ for layer in "${layers[@]}"; do
 
   if [ "$gateway_manage" = "1" ]; then
     stop_gateway
-    start_gateway "$gateway_log"
+    start_gateway "$gateway_log" "$power_log"
   else
     echo "GATEWAY_MANAGE=0: restart the gateway so ${layer} flags load, then press Enter."
     read -r _
@@ -204,4 +207,5 @@ done
 stop_gateway
 echo "PyRIT artifacts written to ${run_dir}"
 echo "Run analysis with:"
-echo "  python analysis/stats.py --artifacts '${run_dir}/**/pyrit.results.json'"
+echo "  python analysis/stats.py --artifacts '${run_dir}/**/pyrit.results.json' --power-log '${run_dir}/D0/power_log.jsonl'"
+echo "  (per-layer power logs: ${run_dir}/<layer>/power_log.jsonl)"
