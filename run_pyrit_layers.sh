@@ -87,6 +87,40 @@ if [ -n "$layers_override" ]; then
   sed -i "s/^layers=.*/layers=$layers_override/" "$run_dir/manifest.txt"
 fi
 
+# ---------------------------------------------------------------------------
+# Preflight: warn/abort if something is already bound to the gateway port
+# ---------------------------------------------------------------------------
+preflight_check() {
+  if [ "$gateway_manage" != "1" ]; then
+    return 0   # user is managing the gateway themselves — not our problem
+  fi
+  local pid
+  # ss is available on almost all modern Linux; fall back to lsof if not.
+  if command -v ss &>/dev/null; then
+    pid=$(ss -tlnp "sport = :${gateway_port}" 2>/dev/null \
+          | grep -oP 'pid=\K[0-9]+' | head -1)
+  elif command -v lsof &>/dev/null; then
+    pid=$(lsof -ti "tcp:${gateway_port}" 2>/dev/null | head -1)
+  fi
+  if [ -n "$pid" ]; then
+    local cmd
+    cmd=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  PREFLIGHT FAIL: port ${gateway_port} is already in use!          ║"
+    echo "║                                                              ║"
+    echo "║  PID $pid  ($cmd)  is listening on that port.              ║"
+    echo "║                                                              ║"
+    echo "║  Options:                                                    ║"
+    echo "║    1. Kill it first:  kill $pid                             ║"
+    echo "║    2. Skip gateway management: GATEWAY_MANAGE=0             ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+}
+preflight_check
+
 stop_gateway() {
   if [ -n "$gateway_pid" ] && kill -0 "$gateway_pid" 2>/dev/null; then
     kill "$gateway_pid" 2>/dev/null || true
