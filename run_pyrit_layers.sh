@@ -256,3 +256,9 @@ echo "        --json-out '$run_dir/report.json' \\"
 echo "        --power-out '$run_dir/power_report.json'"
 echo "  ────────────────────────────────────────────────────────────────────"
 echo ""
+
+if [ "${PYRIT_NO_ANALYZE:-0}" != "1" ]; then
+  echo "  Running analysis automatically (set PYRIT_NO_ANALYZE=1 to skip)..."
+  echo ""
+  bash "$analyze_script" && echo "  ✓ Report ready: $run_dir/report.md"
+fi
