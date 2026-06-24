@@ -9,7 +9,7 @@ export VLLM_DEEP_GEMM_WARMUP=skip
 
 vllm serve Qwen/Qwen3.6-27B-FP8 \
   --host 0.0.0.0 --port 8001 --served-model-name qwen3-27b \
-  --max-model-len 32768 --gpu-memory-utilization 0.28 --max-num-seqs 64\
+  --max-model-len 32768 --gpu-memory-utilization 0.24 --max-num-seqs 51\
   --load-format runai_streamer \
   --model-loader-extra-config '{"memory_limit": 4294967296}' \
   --enable-auto-tool-choice \

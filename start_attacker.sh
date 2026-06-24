@@ -10,6 +10,6 @@ export VLLM_DEEP_GEMM_WARMUP=skip
 
 vllm serve NousResearch/Hermes-4-70B-FP8 \
   --host 0.0.0.0 --port 8002 --served-model-name hermes-70b \
-  --max-model-len 32768 --gpu-memory-utilization 0.62 \
+  --max-model-len 32768 --gpu-memory-utilization 0.59 \
   --load-format runai_streamer \
   --model-loader-extra-config '{"memory_limit": 4294967296}' \

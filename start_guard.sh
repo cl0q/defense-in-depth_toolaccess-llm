@@ -16,12 +16,18 @@
 
 source ~/LLM/vllm_env/bin/activate
 
+export CUDA_HOME=/usr/local/cuda
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
+export MAX_JOBS=4
+export NVCC_THREADS=1
+export VLLM_DEEP_GEMM_WARMUP=skip
+
 python -m vllm.entrypoints.openai.api_server \
   --model meta-llama/Llama-Guard-3-8B \
   --served-model-name llama-guard-3-8b \
   --host 127.0.0.1 \
   --port 8003 \
   --quantization fp8 \
-  --gpu-memory-utilization 0.07 \
+  --gpu-memory-utilization 0.10 \
   --max-model-len 4096 \
-  --api-key token-abc123
