@@ -19,6 +19,10 @@
 #   GATEWAY_MANAGE=0 bash run_pyrit_layers.sh   # manage gateway yourself
 #   PYRIT_STRATEGY=redteam bash run_pyrit_layers.sh
 #   PYRIT_GOALS=G-R1,G-R2 bash run_pyrit_layers.sh
+#
+# Output is teed to per-layer run.log, so colours are auto-disabled there to keep
+# logs clean.  Single interactive runs (redteam/run_pyrit.py directly) get full
+# colour automatically; set PYRIT_FORCE_COLOR=1 to force ANSI even through a pipe.
 
 set -euo pipefail
 

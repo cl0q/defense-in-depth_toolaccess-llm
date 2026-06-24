@@ -73,6 +73,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from redteam.pyrit_target import CanaryLeakScorer, GatewayTarget  # noqa: E402
+from redteam import cli_format  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -155,12 +156,25 @@ async def run_one_attack(
             max_backtracks=5,
         )
 
-    result = await attack.execute_async(objective=objective_str)
+    try:
+        result = await attack.execute_async(objective=objective_str)
+        outcome = result.outcome
+        conversation_id = str(getattr(result, "conversation_id", ""))
+        error = None
+    except Exception as exc:  # noqa: BLE001
+        outcome = None
+        conversation_id = ""
+        error = str(exc)
+        if os.getenv("PYRIT_DEBUG", "") not in ("", "0"):
+            traceback.print_exc(file=sys.stderr)
+
     return {
-        "outcome": result.outcome,
-        "conversation_id": str(getattr(result, "conversation_id", "")),
+        "outcome": outcome,
+        "conversation_id": conversation_id,
         "active_layers": list(target.last_active_layers),
         "trace_id": target.last_trace_id,
+        "turns": target.turns,
+        "error": error,
     }
 
 
@@ -191,10 +205,15 @@ async def main_async(args: argparse.Namespace) -> None:
         print("[run_pyrit] No objectives matched — nothing to run.", file=sys.stderr)
         sys.exit(1)
 
-    print(
-        f"[run_pyrit] strategy={args.strategy}  layer={args.layer}"
-        f"  objectives={len(objectives)}  max_turns={args.max_turns}",
-        flush=True,
+    console = cli_format.make_console()
+    cli_format.print_header(
+        console,
+        strategy=args.strategy,
+        layer=args.layer,
+        n_objectives=len(objectives),
+        max_turns=args.max_turns,
+        attacker_model=os.getenv("OPENAI_CHAT_MODEL", "?"),
+        gateway_endpoint=args.gateway_endpoint,
     )
 
     run_id = args.run_id or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -204,32 +223,29 @@ async def main_async(args: argparse.Namespace) -> None:
         bearer_token = ROLE_TOKEN_MAP.get(obj["role"], "tenant_a.customer")
         objective_str = f"{obj['goal']}: {obj['description']}"
 
-        print(
-            f"[run_pyrit] [{idx:>2}/{len(objectives)}] {objective_str[:80]}",
-            flush=True,
-        )
+        cli_format.print_running(console, idx, len(objectives), obj["goal"], obj["description"])
 
-        try:
-            raw = await run_one_attack(
-                objective_str=objective_str,
-                bearer_token=bearer_token,
-                attacker=attacker,
-                scorer=scorer,
-                strategy=args.strategy,
-                gateway_endpoint=args.gateway_endpoint,
-                max_turns=args.max_turns,
-            )
-            attack_success = raw["outcome"] == AttackOutcome.SUCCESS
-        except Exception as exc:  # noqa: BLE001
-            print(f"  [ERROR] {exc}", file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
-            attack_success = False
-            raw = {
-                "outcome": "ERROR",
-                "active_layers": [],
-                "trace_id": "",
-                "conversation_id": "",
-            }
+        raw = await run_one_attack(
+            objective_str=objective_str,
+            bearer_token=bearer_token,
+            attacker=attacker,
+            scorer=scorer,
+            strategy=args.strategy,
+            gateway_endpoint=args.gateway_endpoint,
+            max_turns=args.max_turns,
+        )
+        attack_success = raw.get("outcome") == AttackOutcome.SUCCESS
+        turns = raw.get("turns", [])
+
+        cli_format.render_conversation(
+            console,
+            goal=obj["goal"],
+            description=obj["description"],
+            role=obj["role"],
+            turns=turns,
+            success=attack_success,
+            error=raw.get("error"),
+        )
 
         results.append(
             {
@@ -250,12 +266,11 @@ async def main_async(args: argparse.Namespace) -> None:
                     "trace_id": raw.get("trace_id", ""),
                     "conversation_id": raw.get("conversation_id", ""),
                     "source_file": obj["source_file"],
+                    "turns": len(turns),
+                    "error": raw.get("error"),
                 },
             }
         )
-
-        label = "ATTACK SUCCEEDED (leak detected!)" if attack_success else "blocked / no leak"
-        print(f"  -> {label}", flush=True)
 
     # Write stats-compatible artifact
     artifact = {
@@ -270,12 +285,11 @@ async def main_async(args: argparse.Namespace) -> None:
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(artifact, fh, indent=2)
 
-    n_success = sum(1 for r in results if r["gradingResult"]["pass"])
-    print(
-        f"[run_pyrit] Done — {n_success}/{len(results)} attacks succeeded."
-        f"  Artifact: {out_path}",
-        flush=True,
-    )
+    cli_format.render_summary(console, results)
+    if console is None:
+        print(f"[run_pyrit] Artifact: {out_path}", flush=True)
+    else:
+        console.print(f"[dim]artifact:[/dim] {out_path}")
 
 
 def main() -> None:

@@ -25,8 +25,18 @@ from .power import measure as power_measure
 
 import os
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging — colourful RichHandler when available, plain fallback otherwise.
+try:
+    from rich.logging import RichHandler  # type: ignore
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(rich_tracebacks=True, show_path=False, markup=False)],
+    )
+except Exception:  # pragma: no cover
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 _debug_llm = os.getenv("DEBUG_LLM", "0") == "1"
 

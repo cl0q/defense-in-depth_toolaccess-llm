@@ -11,3 +11,5 @@ requests==2.32.3
 transformers>=4.40.0
 # Phase 3: GPU power measurement
 pynvml>=11.5.0
+# Colourful CLI logging (graceful fallback if absent)
+rich>=13.0.0

@@ -85,6 +85,10 @@ class GatewayTarget(PromptTarget):
         self._bearer_token = bearer_token
         self.last_active_layers: list[str] = []
         self.last_trace_id: str = ""
+        # Per-call message log: {prompt, response, status, active_layers}.
+        # Captured here (rather than from PyRIT memory) so the CLI renderer is
+        # independent of the memory API and works even on partial/failed runs.
+        self.turns: list[dict] = []
 
     async def _send_prompt_to_target_async(
         self,
@@ -119,6 +123,15 @@ class GatewayTarget(PromptTarget):
             response_text = data.get("response", "")
             self.last_active_layers = data.get("active_layers", [])
             self.last_trace_id = data.get("trace_id", "")
+
+        self.turns.append(
+            {
+                "prompt": prompt_text,
+                "response": response_text,
+                "status": resp.status_code,
+                "active_layers": list(self.last_active_layers),
+            }
+        )
 
         return [construct_response_from_request(request=piece, response_text_pieces=[response_text])]
 
