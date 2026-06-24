@@ -221,6 +221,23 @@ async def main_async(args: argparse.Namespace) -> None:
     trials = max(1, args.trials)
     results: list[dict[str, Any]] = []
 
+    out_path = Path(args.output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def flush_artifact() -> None:
+        """Atomically persist results so far; an abort keeps completed trials."""
+        artifact = {
+            "results": results,
+            "run_id": run_id,
+            "layer": args.layer,
+            "strategy": args.strategy,
+            "trials": trials,
+        }
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(artifact, fh, indent=2)
+        os.replace(tmp_path, out_path)
+
     for idx, obj in enumerate(objectives, 1):
         bearer_token = ROLE_TOKEN_MAP.get(obj["role"], "tenant_a.customer")
         objective_str = f"{obj['goal']}: {obj['description']}"
@@ -294,20 +311,10 @@ async def main_async(args: argparse.Namespace) -> None:
                     },
                 }
             )
+            flush_artifact()
 
-    # Write stats-compatible artifact
-    artifact = {
-        "results": results,
-        "run_id": run_id,
-        "layer": args.layer,
-        "strategy": args.strategy,
-        "trials": trials,
-    }
-
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as fh:
-        json.dump(artifact, fh, indent=2)
+    # Final flush + summary
+    flush_artifact()
 
     if trials > 1:
         cli_format.render_trials_summary(console, results, trials)
