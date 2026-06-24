@@ -39,6 +39,8 @@ git_sha="${GIT_SHA:-$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || 
 strategy="${PYRIT_STRATEGY:-crescendo}"
 goals="${PYRIT_GOALS:-}"          # empty = all goals
 max_turns="${PYRIT_MAX_TURNS:-10}"
+trials="${PYRIT_TRIALS:-1}"       # repeat each goal N times -> leak-rate
+layers_override="${PYRIT_LAYERS:-}"  # CSV to restrict the matrix, e.g. D0,DA
 
 # --- Gateway config (matches run_promptfoo_layers.sh) -----------------------
 gateway_manage="${GATEWAY_MANAGE:-1}"
@@ -73,12 +75,17 @@ git_sha=$git_sha
 strategy=$strategy
 goals=${goals:-all}
 max_turns=$max_turns
+trials=$trials
 attacker_endpoint=$OPENAI_CHAT_ENDPOINT
 attacker_model=$OPENAI_CHAT_MODEL
 gateway_manage=$gateway_manage
 gateway_endpoint=$PYRIT_GATEWAY_ENDPOINT
 layers=D0,DA,DB,DC-a,DC-b,DC-c,D++,DT
 EOF
+
+if [ -n "$layers_override" ]; then
+  sed -i "s/^layers=.*/layers=$layers_override/" "$run_dir/manifest.txt"
+fi
 
 stop_gateway() {
   if [ -n "$gateway_pid" ] && kill -0 "$gateway_pid" 2>/dev/null; then
@@ -113,6 +120,9 @@ start_gateway() {
 trap stop_gateway EXIT
 
 layers=("D0" "DA" "DB" "DC-a" "DC-b" "DC-c" "D++" "DT")
+if [ -n "$layers_override" ]; then
+  IFS=',' read -r -a layers <<< "$layers_override"
+fi
 
 for layer in "${layers[@]}"; do
   layer_dir="$run_dir/$layer"
@@ -146,6 +156,7 @@ for layer in "${layers[@]}"; do
     --output "$results_file" \
     --strategy "$strategy" \
     --max-turns "$max_turns" \
+    --trials "$trials" \
     --run-id "$run_id" \
     --db-path "$db_file" \
     ${goals_arg} \
