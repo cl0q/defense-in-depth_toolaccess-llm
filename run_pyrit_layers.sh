@@ -94,13 +94,15 @@ preflight_check() {
   if [ "$gateway_manage" != "1" ]; then
     return 0   # user is managing the gateway themselves — not our problem
   fi
-  local pid
+  local pid=""
   # ss is available on almost all modern Linux; fall back to lsof if not.
+  # `|| true` is essential: when the port is FREE, grep/lsof exit non-zero and
+  # would trip `set -o pipefail` + `set -e`, aborting the whole sweep.
   if command -v ss &>/dev/null; then
-    pid=$(ss -tlnp "sport = :${gateway_port}" 2>/dev/null \
-          | grep -oP 'pid=\K[0-9]+' | head -1)
+    pid=$( { ss -tlnp "sport = :${gateway_port}" 2>/dev/null \
+             | grep -oP 'pid=\K[0-9]+' | head -1; } || true )
   elif command -v lsof &>/dev/null; then
-    pid=$(lsof -ti "tcp:${gateway_port}" 2>/dev/null | head -1)
+    pid=$( { lsof -ti "tcp:${gateway_port}" 2>/dev/null | head -1; } || true )
   fi
   if [ -n "$pid" ]; then
     local cmd
