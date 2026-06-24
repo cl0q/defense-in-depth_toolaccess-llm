@@ -320,10 +320,22 @@ async def main_async(args: argparse.Namespace) -> None:
         cli_format.render_trials_summary(console, results, trials)
     else:
         cli_format.render_summary(console, results)
+
+    analyze_cmd = (
+        f"python analysis/stats.py "
+        f"--artifacts '{out_path}' "
+        f"--power-log 'power_log.jsonl' "
+        f"--out 'analysis/report_{run_id}.md'"
+    )
     if console is None:
-        print(f"[run_pyrit] Artifact: {out_path}", flush=True)
+        print(f"\n[run_pyrit] run_id: {run_id}", flush=True)
+        print(f"[run_pyrit] artifact: {out_path}", flush=True)
+        print(f"[run_pyrit] analyze with:\n  {analyze_cmd}", flush=True)
     else:
+        console.print(f"\n[bold cyan]run_id:[/bold cyan] [bold]{run_id}[/bold]")
         console.print(f"[dim]artifact:[/dim] {out_path}")
+        console.print("[bold]analyze this run:[/bold]")
+        console.print(f"  [green]{analyze_cmd}[/green]")
 
 
 def main() -> None:

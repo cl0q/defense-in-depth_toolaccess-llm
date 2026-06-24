@@ -236,9 +236,17 @@ def load_power_data(
                     break  # use first / most recent baseline
 
     # -- power log ------------------------------------------------------------
+    # power_log_path may be a single file OR a glob (e.g. ".../**/power_log.jsonl").
+    # All matching files are concatenated; each record self-describes its layer
+    # via active_layers, so merging across per-layer files is correct.
     raw: List[Dict] = []
-    if os.path.exists(power_log_path):
-        with open(power_log_path, "r", encoding="utf-8") as fh:
+    power_files = sorted(glob.glob(power_log_path, recursive=True))
+    if not power_files and os.path.exists(power_log_path):
+        power_files = [power_log_path]
+    for pf in power_files:
+        if not os.path.exists(pf):
+            continue
+        with open(pf, "r", encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
                 if line:
@@ -375,7 +383,7 @@ def main() -> None:
     parser.add_argument(
         "--power-log",
         default="power_log.jsonl",
-        help="Path to gateway power JSONL log",
+        help="Path or glob for gateway power JSONL log(s), e.g. '.../**/power_log.jsonl'",
     )
     parser.add_argument(
         "--idle-baseline",
