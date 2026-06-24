@@ -214,63 +214,86 @@ async def main_async(args: argparse.Namespace) -> None:
         max_turns=args.max_turns,
         attacker_model=os.getenv("OPENAI_CHAT_MODEL", "?"),
         gateway_endpoint=args.gateway_endpoint,
+        trials=max(1, args.trials),
     )
 
     run_id = args.run_id or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    trials = max(1, args.trials)
     results: list[dict[str, Any]] = []
 
     for idx, obj in enumerate(objectives, 1):
         bearer_token = ROLE_TOKEN_MAP.get(obj["role"], "tenant_a.customer")
         objective_str = f"{obj['goal']}: {obj['description']}"
 
-        cli_format.print_running(console, idx, len(objectives), obj["goal"], obj["description"])
+        for trial in range(1, trials + 1):
+            if trials > 1:
+                cli_format.print_running(
+                    console,
+                    idx,
+                    len(objectives),
+                    obj["goal"],
+                    f"{obj['description']}  (trial {trial}/{trials})",
+                )
+            else:
+                cli_format.print_running(console, idx, len(objectives), obj["goal"], obj["description"])
 
-        raw = await run_one_attack(
-            objective_str=objective_str,
-            bearer_token=bearer_token,
-            attacker=attacker,
-            scorer=scorer,
-            strategy=args.strategy,
-            gateway_endpoint=args.gateway_endpoint,
-            max_turns=args.max_turns,
-        )
-        attack_success = raw.get("outcome") == AttackOutcome.SUCCESS
-        turns = raw.get("turns", [])
+            raw = await run_one_attack(
+                objective_str=objective_str,
+                bearer_token=bearer_token,
+                attacker=attacker,
+                scorer=scorer,
+                strategy=args.strategy,
+                gateway_endpoint=args.gateway_endpoint,
+                max_turns=args.max_turns,
+            )
+            attack_success = raw.get("outcome") == AttackOutcome.SUCCESS
+            turns = raw.get("turns", [])
 
-        cli_format.render_conversation(
-            console,
-            goal=obj["goal"],
-            description=obj["description"],
-            role=obj["role"],
-            turns=turns,
-            success=attack_success,
-            error=raw.get("error"),
-        )
+            # First turn whose victim response leaked a sensitive canary.
+            leak_turn = None
+            for ti, t in enumerate(turns, 1):
+                if cli_format.turn_leaked(t.get("response", "")):
+                    leak_turn = ti
+                    break
 
-        results.append(
-            {
-                "gradingResult": {"pass": attack_success},
-                "tags": {
-                    "config": args.layer,
-                    "goal": obj["goal"],
-                    "run.id": run_id,
-                    "attack": args.strategy,
-                },
-                "description": f"{obj['goal']}: {obj['description']}",
-                "prompt": obj["prompt"],
-                "metadata": {
-                    "role": obj["role"],
-                    "bearer_token": bearer_token,
-                    "expected_result": obj["expected_result"],
-                    "active_layers": raw.get("active_layers", []),
-                    "trace_id": raw.get("trace_id", ""),
-                    "conversation_id": raw.get("conversation_id", ""),
-                    "source_file": obj["source_file"],
-                    "turns": len(turns),
-                    "error": raw.get("error"),
-                },
-            }
-        )
+            cli_format.render_conversation(
+                console,
+                goal=obj["goal"],
+                description=obj["description"],
+                role=obj["role"],
+                turns=turns,
+                success=attack_success,
+                error=raw.get("error"),
+            )
+
+            results.append(
+                {
+                    "gradingResult": {"pass": attack_success},
+                    "tags": {
+                        "config": args.layer,
+                        "goal": obj["goal"],
+                        "run.id": run_id,
+                        "attack": args.strategy,
+                        "trial": trial,
+                    },
+                    "description": f"{obj['goal']}: {obj['description']}",
+                    "prompt": obj["prompt"],
+                    "metadata": {
+                        "role": obj["role"],
+                        "bearer_token": bearer_token,
+                        "expected_result": obj["expected_result"],
+                        "active_layers": raw.get("active_layers", []),
+                        "trace_id": raw.get("trace_id", ""),
+                        "conversation_id": raw.get("conversation_id", ""),
+                        "source_file": obj["source_file"],
+                        "turns": len(turns),
+                        "leak_turn": leak_turn,
+                        "trial": trial,
+                        "trials": trials,
+                        "error": raw.get("error"),
+                    },
+                }
+            )
 
     # Write stats-compatible artifact
     artifact = {
@@ -278,6 +301,7 @@ async def main_async(args: argparse.Namespace) -> None:
         "run_id": run_id,
         "layer": args.layer,
         "strategy": args.strategy,
+        "trials": trials,
     }
 
     out_path = Path(args.output)
@@ -285,7 +309,10 @@ async def main_async(args: argparse.Namespace) -> None:
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(artifact, fh, indent=2)
 
-    cli_format.render_summary(console, results)
+    if trials > 1:
+        cli_format.render_trials_summary(console, results, trials)
+    else:
+        cli_format.render_summary(console, results)
     if console is None:
         print(f"[run_pyrit] Artifact: {out_path}", flush=True)
     else:
@@ -314,6 +341,12 @@ def main() -> None:
         type=int,
         default=10,
         help="Max turns per attack (default: 10)",
+    )
+    parser.add_argument(
+        "--trials",
+        type=int,
+        default=1,
+        help="Repeat each goal N times to report a leak-rate (default: 1)",
     )
     parser.add_argument(
         "--gateway-endpoint",

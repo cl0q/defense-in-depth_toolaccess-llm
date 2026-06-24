@@ -113,11 +113,12 @@ def print_header(
     max_turns: int,
     attacker_model: str,
     gateway_endpoint: str,
+    trials: int = 1,
 ) -> None:
     if console is None:
         print(
             f"[run_pyrit] strategy={strategy} layer={layer} "
-            f"objectives={n_objectives} max_turns={max_turns}",
+            f"objectives={n_objectives} trials={trials} max_turns={max_turns}",
             flush=True,
         )
         return
@@ -127,6 +128,7 @@ def print_header(
         ("strategy", strategy),
         ("layer", layer),
         ("objectives", str(n_objectives)),
+        ("trials", str(trials)),
         ("max turns", str(max_turns)),
         ("attacker", attacker_model),
         ("gateway", gateway_endpoint),
@@ -254,3 +256,91 @@ def render_summary(console: Optional["Console"], results: list[dict[str, Any]]) 
     console.print(table)
     style = "bold red" if succeeded else "bold green"
     console.print(f"[{style}]{succeeded}/{total} attacks succeeded (data leaked)[/]")
+
+
+def render_trials_summary(
+    console: Optional["Console"],
+    results: list[dict[str, Any]],
+    trials: int,
+) -> None:
+    """Aggregate multi-trial results into a per-goal leak-rate table."""
+    # Group results by goal, preserving first-seen order.
+    by_goal: dict[str, list[dict[str, Any]]] = {}
+    for r in results:
+        goal = r["tags"]["goal"]
+        by_goal.setdefault(goal, []).append(r)
+
+    def _mean(values: list[int]) -> Optional[float]:
+        return sum(values) / len(values) if values else None
+
+    rows: list[dict[str, Any]] = []
+    for goal, items in by_goal.items():
+        n = len(items)
+        leaks = sum(1 for r in items if r["gradingResult"]["pass"])
+        leak_turns = [
+            r["metadata"].get("leak_turn")
+            for r in items
+            if r["gradingResult"]["pass"] and r["metadata"].get("leak_turn") is not None
+        ]
+        mean_turn = _mean([int(t) for t in leak_turns])
+        meta = items[0].get("metadata", {})
+        layers = ",".join(meta.get("active_layers") or []) or "—"
+        rows.append(
+            {
+                "goal": goal,
+                "role": str(meta.get("role", "")).replace("role_", ""),
+                "n": n,
+                "leaks": leaks,
+                "rate": leaks / n if n else 0.0,
+                "mean_turn": mean_turn,
+                "layers": layers,
+            }
+        )
+
+    total_runs = sum(r["n"] for r in rows)
+    total_leaks = sum(r["leaks"] for r in rows)
+
+    if console is None:
+        print(f"\n[run_pyrit] leak-rate over {trials} trials/goal:")
+        for r in rows:
+            mt = f"{r['mean_turn']:.1f}" if r["mean_turn"] is not None else "—"
+            print(
+                f"  {r['goal']:<6} {r['leaks']}/{r['n']} leaked "
+                f"({r['rate'] * 100:.0f}%)  mean turns-to-leak={mt}"
+            )
+        print(f"  TOTAL  {total_leaks}/{total_runs} leaked")
+        return
+
+    table = Table(
+        title=f"Leak-rate summary · {trials} trials/goal",
+        box=box.ROUNDED,
+        title_style="bold",
+        expand=False,
+    )
+    table.add_column("Goal", style="bold")
+    table.add_column("Role")
+    table.add_column("Layers", style="cyan")
+    table.add_column("Leaks", justify="right")
+    table.add_column("Leak-rate", justify="right")
+    table.add_column("Mean turns→leak", justify="right")
+
+    for r in rows:
+        rate_pct = r["rate"] * 100
+        rate_style = "bold red" if r["leaks"] else "bold green"
+        mt = f"{r['mean_turn']:.1f}" if r["mean_turn"] is not None else "—"
+        table.add_row(
+            r["goal"],
+            r["role"],
+            r["layers"],
+            f"{r['leaks']}/{r['n']}",
+            Text(f"{rate_pct:.0f}%", style=rate_style),
+            mt,
+        )
+
+    console.print(table)
+    overall_rate = (total_leaks / total_runs * 100) if total_runs else 0.0
+    style = "bold red" if total_leaks else "bold green"
+    console.print(
+        f"[{style}]overall leak-rate: {total_leaks}/{total_runs} "
+        f"({overall_rate:.0f}%) across {len(rows)} goals × {trials} trials[/]"
+    )
