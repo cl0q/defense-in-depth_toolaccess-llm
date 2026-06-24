@@ -204,4 +204,4 @@ done
 stop_gateway
 echo "PyRIT artifacts written to ${run_dir}"
 echo "Run analysis with:"
-echo "  python analysis/stats.py --glob '${run_dir}/**/pyrit.results.json'"
+echo "  python analysis/stats.py --artifacts '${run_dir}/**/pyrit.results.json'"
