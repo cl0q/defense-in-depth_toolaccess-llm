@@ -197,7 +197,7 @@ async def main_async(args: argparse.Namespace) -> None:
         flush=True,
     )
 
-    run_id = args.run_id or datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    run_id = args.run_id or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     results: list[dict[str, Any]] = []
 
     for idx, obj in enumerate(objectives, 1):

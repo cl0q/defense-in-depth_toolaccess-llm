@@ -5,6 +5,7 @@
 [models]
 target = Qwen/Qwen3.6-27B-FP8@v1.0.0
 attacker = NousResearch/Hermes-4-70B-FP8@v1.0.0
+attacker_served_model_name = hermes-70b
 guard = meta-llama/Llama-Guard-3-8B@v1.0.0
 prompt_guard = meta-llama/Llama-Prompt-Guard-2-86M@v1.0.0
 

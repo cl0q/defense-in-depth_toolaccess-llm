@@ -54,7 +54,7 @@ gateway_pid=""
 # --- Attacker LLM (read natively by OpenAIChatTarget via OPENAI_CHAT_* vars) -
 export OPENAI_CHAT_ENDPOINT="${PYRIT_ATTACKER_ENDPOINT:-http://127.0.0.1:8002/v1}"
 export OPENAI_CHAT_KEY="${PYRIT_ATTACKER_API_KEY:-token-abc123}"
-export OPENAI_CHAT_MODEL="${PYRIT_ATTACKER_MODEL:-NousResearch/Hermes-4-70B-FP8}"
+export OPENAI_CHAT_MODEL="${PYRIT_ATTACKER_MODEL:-hermes-70b}"
 
 export PYRIT_GATEWAY_ENDPOINT="http://${gateway_host}:${gateway_port}/query"
 
