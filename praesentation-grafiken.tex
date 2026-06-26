@@ -1,0 +1,630 @@
+% =====================================================================
+%  praesentation-grafiken.tex
+%  TikZ-Grafiken zur Bachelor-Praesentation
+%  "Sicherheit von LLMs mit Datenbankzugriff -- Red-Teaming und
+%   Defense-in-Depth im Unternehmenskontext"
+%
+%  Zweck:
+%   - Jede Grafik unterstreicht den Kernpunkt EINER Folie aus
+%     praesentation-neu.md und ersetzt/ergaenzt dort Stichpunkte.
+%   - Jede Figure ist eigenstaendig: in eine Beamer-frame kopieren
+%     ODER per \includestandalone / als einzelnes PDF nutzen.
+%
+%  Kompilieren: lualatex (empfohlen) oder pdflatex.
+%  Benoetigte Pakete: tikz, pgfplots, pgfgantt, amssymb, geometry.
+%
+%  Ausgabe: Querformat-PDF, EINE Grafik pro Seite mit Ueberschrift
+%  (Zuordnung zur Folie). Jeden tikzpicture-/ganttchart-Block kann
+%  man auch direkt in eine Beamer-frame kopieren oder per
+%  \includestandalone als Einzelgrafik einbinden.
+%
+%  Zuordnung Grafik -> Folie:
+%   Fig 1  -> Folie 4   Multi-Tenant-Szenario
+%   Fig 2  -> Folie 5   Berechtigungsmatrix (Heatmap)
+%   Fig 3  -> Folie 6   Angriffstaxonomie (OWASP-Mapping)
+%   Fig 4  -> Folie 9   Defense-in-Depth-Stack (probabil. vs determin.)
+%   Fig 5  -> Folie 10  RLS + Identitaets-Propagation (Jailbreak geblockt)
+%   Fig 6  -> Folie 11  DT: LLM vom SQL-Autor zum Parameter-Lieferanten
+%   Fig 7  -> Folie 13  Hybrid-Mess-Architektur (2 entkoppelte Pfade)
+%   Fig 8  -> Folie 14  Trade-off-Diagramm (ASR-Reduktion vs. Kosten)
+%   Fig 9  -> Folie 8   Hypothesen-Kurven (abnehmender Grenznutzen / Kosten)
+%   Fig 10 -> Folie 15  Experiment-Matrix (Erwartungs-Heatmap)
+%   Fig 11 -> Folie 17  Zeitplan (Gantt)
+% =====================================================================
+
+\documentclass[11pt]{article}
+\usepackage[a4paper, landscape, margin=12mm]{geometry}
+\pagestyle{empty}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{amssymb}   % \checkmark
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfgantt}
+
+\usetikzlibrary{
+  arrows.meta,
+  positioning,
+  calc,
+  fit,
+  backgrounds,
+  shapes.geometric,
+  shapes.misc,
+  matrix,
+  decorations.pathreplacing,
+  decorations.pathmorphing,
+  patterns
+}
+
+% ---------------------------------------------------------------------
+%  Farbschema (durchgaengig, technisch-nuechtern)
+% ---------------------------------------------------------------------
+\definecolor{probColor}{RGB}{230,159,0}    % amber  - probabilistisch (DA/DB)
+\definecolor{detColor}{RGB}{0,158,115}     % gruen  - deterministisch (DC/DT)
+\definecolor{baseColor}{RGB}{120,120,120}  % grau   - Baseline D0
+\definecolor{attackColor}{RGB}{213,40,40}  % rot    - Angriff
+\definecolor{dbColor}{RGB}{0,114,178}      % blau   - Datenbank / Infra
+\definecolor{llmColor}{RGB}{86,86,160}     % violett- LLM
+\definecolor{okGreen}{RGB}{122,193,143}    % erlaubt
+\definecolor{noRed}{RGB}{226,128,128}      % verboten
+\definecolor{partYellow}{RGB}{244,224,140} % eingeschraenkt
+\definecolor{inkGray}{RGB}{60,60,70}
+
+% ---------------------------------------------------------------------
+%  Gemeinsame Stile
+% ---------------------------------------------------------------------
+\tikzset{
+  >={Stealth[length=2.6mm]},
+  font=\sffamily,
+  box/.style={
+    rounded corners=2pt, draw=inkGray, line width=0.6pt,
+    align=center, inner sep=5pt, minimum height=9mm, fill=white
+  },
+  proc/.style={box, fill=llmColor!12, draw=llmColor!70},
+  infra/.style={box, fill=dbColor!12, draw=dbColor!75},
+  prob/.style={box, fill=probColor!20, draw=probColor!85},
+  det/.style={box, fill=detColor!18, draw=detColor!80},
+  base/.style={box, fill=baseColor!18, draw=baseColor!85},
+  db/.style={
+    cylinder, shape border rotate=90, aspect=0.25,
+    draw=dbColor!80, fill=dbColor!12, line width=0.6pt,
+    align=center, inner sep=5pt, minimum height=13mm, minimum width=20mm
+  },
+  flow/.style={->, line width=0.8pt, draw=inkGray},
+  attack/.style={->, line width=1.0pt, draw=attackColor, dashed},
+  measure/.style={->, line width=0.8pt, draw=dbColor, densely dotted},
+  lbl/.style={font=\scriptsize\sffamily, inner sep=1.5pt},
+  caption/.style={font=\footnotesize\itshape, inner sep=2pt, text=inkGray}
+}
+
+% Eine Grafik pro Seite, mittig, mit Ueberschrift (Folien-Zuordnung)
+\newcommand{\figpage}[2]{%
+  \clearpage
+  \begin{center}{\Large\bfseries #1}\\[3pt]{\itshape #2}\end{center}
+  \vspace{3mm}\centering}
+
+\begin{document}
+
+% =====================================================================
+%  FIG 1 -- Folie 4: Multi-Tenant-Szenario
+%  Punkt: EIN LLM-Dienst + EINE DB teilen Daten ALLER Tenants;
+%         Insider-Angriff zielt ueber die Tenant-Grenze.
+% =====================================================================
+\figpage{Fig 1 · Folie 4}{Multi-Tenant-Szenario — ein LLM-Dienst, eine DB, Daten aller Tenants}
+\begin{tikzpicture}[node distance=10mm]
+
+  % Tenants links
+  \node[proc, minimum width=26mm] (haendlerA) {Händler A\\\scriptsize (Tenant)};
+  \node[proc, minimum width=26mm, below=8mm of haendlerA] (haendlerB) {Händler B\\\scriptsize (Tenant)};
+  \node[proc, minimum width=26mm, below=8mm of haendlerB] (kunde) {Kunde\\\scriptsize (Tenant)};
+
+  % Gateway + LLM Mitte
+  \node[infra, right=22mm of haendlerB, minimum width=26mm] (gw)
+        {API-Gateway\\\scriptsize Auth · Identität};
+  \node[proc, right=14mm of gw, minimum width=26mm] (llm)
+        {LLM-Dienst\\\scriptsize NL-to-SQL};
+
+  % geteilte DB rechts
+  \node[db, right=16mm of llm, minimum width=24mm, minimum height=22mm] (db)
+        {PostgreSQL\\[1pt]\scriptsize \textbf{eine} DB\\\scriptsize Daten \textbf{aller} Tenants};
+
+  % Flows
+  \draw[flow] (haendlerA) -- (gw);
+  \draw[flow] (haendlerB) -- (gw);
+  \draw[flow] (kunde) -- (gw);
+  \draw[flow] (gw) -- (llm);
+  \draw[flow] (llm) -- node[lbl, above]{SQL} (db);
+
+  % Tenant-partitionierte Daten in der DB (angedeutet)
+  \node[lbl, right=2mm of db, align=left, text=dbColor!80]
+        {\scriptsize Zeilen je Tenant\\\scriptsize (tenant\_id)};
+
+  % (Insider-/Angriffs-Pfeil entfernt — Angriff laeuft ohnehin denselben
+  %  Weg wie legitime Anfragen; separater roter Pfeil war irrefuehrend.)
+
+  % Legende / Kernaussage
+  \node[caption, below=10mm of kunde.south west, anchor=north west, text width=92mm]
+        {Isolierte DB pro Tenant wäre trivial sicher, aber bei 10.000+ Tenants
+         unwirtschaftlich $\Rightarrow$ erst Multi-Tenancy macht Zugriffskontrolle hart.};
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 2 -- Folie 5: Berechtigungsmatrix (Heatmap)
+%  Punkt: Wer darf was lesen/schreiben? gruen=erlaubt, rot=verboten,
+%         gelb=eingeschraenkt/maskiert.
+% =====================================================================
+\figpage{Fig 2 · Folie 5}{Berechtigungsmatrix — wer darf was lesen/schreiben (Heatmap)}
+\begin{tikzpicture}[
+    cell/.style={minimum width=18mm, minimum height=8mm, anchor=center,
+                 font=\scriptsize, inner sep=1pt},
+    head/.style={font=\scriptsize\bfseries, align=center, inner sep=2pt},
+    rl/.style={font=\scriptsize, align=right, anchor=east, inner sep=3pt},
+    yes/.style={cell, fill=okGreen},
+    no/.style={cell, fill=noRed},
+    part/.style={cell, fill=partYellow}
+  ]
+
+  \def\cw{18mm}   % Spaltenabstand
+  \def\rh{8mm}    % Zeilenabstand
+
+  % Spaltenkoepfe
+  \foreach \i/\txt in {1/{Kunde\\R},2/{Kunde\\W},3/{Händler\\R},
+                       4/{Händler\\W},5/{Admin\\R},6/{Admin\\W}}{
+    \node[head] at (\i*\cw, 0) {\txt};
+  }
+
+  % Datenzeilen: ri / {Label} / {Zellenliste}
+  % Zellenliste-Element = col/style/{Inhalt}
+  \foreach \ri/\label/\cells in {%
+    1/{Eigenes Profil / Bestellung}/{1/yes/{\checkmark},2/yes/{\checkmark},3/yes/{\checkmark},4/yes/{\checkmark},5/yes/{\checkmark},6/yes/{\checkmark}},%
+    2/{Fremde Kunden (PII)}/{1/no/{$\times$},2/no/{$\times$},3/part/{eingeschr.},4/no/{$\times$},5/yes/{\checkmark},6/yes/{\checkmark}},%
+    3/{Fremde Händler (Kosten)}/{1/no/{$\times$},2/no/{$\times$},3/no/{$\times$},4/no/{$\times$},5/yes/{\checkmark},6/yes/{\checkmark}},%
+    4/{Auszahlungskonto (Händler)}/{1/no/{$\times$},2/no/{$\times$},3/yes/{\checkmark},4/yes/{\checkmark},5/yes/{\checkmark},6/yes/{\checkmark}},%
+    5/{Karten-Token (Zahlung)}/{1/part/{maskiert},2/no/{$\times$},3/no/{$\times$},4/no/{$\times$},5/part/{eingeschr.},6/part/{eingeschr.}},%
+    6/{Eigene Plattform-Rolle}/{1/no/{$\times$},2/no/{$\times$},3/no/{$\times$},4/no/{$\times$},5/yes/{\checkmark},6/yes/{\checkmark}},%
+    7/{Bestellsumme}/{1/yes/{\checkmark},2/no/{$\times$},3/yes/{\checkmark},4/no/{$\times$},5/yes/{\checkmark},6/yes/{\checkmark}}%
+  }{%
+    \node[rl] at (0.45*\cw,-\ri*\rh) {\label};
+    \foreach \ci/\sty/\txt in \cells {%
+      \node[\sty] at (\ci*\cw,-\ri*\rh) {\txt};
+    }%
+  }
+
+  % Legende
+  \node[yes, anchor=west]  (l1) at (0.45*\cw,-8.4*\rh) {\checkmark};
+  \node[font=\scriptsize, anchor=west] at (l1.east) {\,erlaubt};
+  \node[no, anchor=west]   (l2) at (2.6*\cw,-8.4*\rh) {$\times$};
+  \node[font=\scriptsize, anchor=west] at (l2.east) {\,verboten};
+  \node[part, anchor=west] (l3) at (4.6*\cw,-8.4*\rh) {eingeschr.};
+  \node[font=\scriptsize, anchor=west] at (l3.east) {\,/ maskiert};
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 3 -- Folie 6: Angriffstaxonomie + OWASP-Mapping
+%  Punkt: Lesen/Schreiben/Stored; Einstieg LLM01, Ausfuehrung LLM05.
+% =====================================================================
+\figpage{Fig 3 · Folie 6}{Angriffstaxonomie — Lesen/Schreiben/Stored, Einstieg LLM01, Ausführung LLM05}
+\begin{tikzpicture}[
+    grow=down, level distance=13mm,
+    cls/.style={box, font=\footnotesize, minimum width=30mm},
+    leaf/.style={box, font=\scriptsize, minimum width=30mm, minimum height=7mm},
+    owasp/.style={font=\scriptsize\bfseries, text=attackColor}
+  ]
+
+  \node[cls, fill=inkGray!8] (root) {Angriffsklassen};
+
+  % drei Zweige
+  \node[cls, fill=probColor!15, below left=12mm and 44mm of root] (read) {Lesen};
+  \node[cls, fill=attackColor!12, below=12mm of root] (write) {Schreiben};
+  \node[cls, fill=llmColor!12, below right=12mm and 44mm of root] (stored) {Stored / Indirect};
+
+  \node[owasp, right=1mm of read]   {LLM02};
+  \node[owasp, right=1mm of write, align=center]  {LLM06\\LLM05};
+  \node[owasp, right=1mm of stored] {LLM01};
+
+  \draw[flow] (root) -- (read);
+  \draw[flow] (root) -- (write);
+  \draw[flow] (root) -- (stored);
+
+  % Blaetter Lesen
+  \node[leaf, below=7mm of read] (r1) {R1 Cross-Tenant-Read};
+  \node[leaf, below=2mm of r1] (r2) {R2 Vertical-Read};
+  \node[leaf, below=2mm of r2] (r3) {R3 Column-Read};
+  \draw[flow] (read) -- (r1);
+
+  % Blaetter Schreiben
+  \node[leaf, below=7mm of write] (w1) {W1 Cross-Tenant · W2 Escalation};
+  \node[leaf, below=2mm of w1] (w3) {W3 Self-serving · W4 Destruktiv};
+  \node[leaf, below=2mm of w3] (w5) {W5 Finanzbetrug};
+  \draw[flow] (write) -- (w1);
+
+  % Blatt Stored
+  \node[leaf, below=7mm of stored, text width=30mm] (s1)
+        {S1 Schadtext in Daten\\kapert fremdes LLM (Admin)};
+  \draw[flow] (stored) -- (s1);
+
+  % (Banner „Einstieg LLM01 → Ausführung LLM05“ samt roten Pfeilen entfernt)
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 4 -- Folie 9: Defense-in-Depth-Stack
+%  Punkt: Layer einzeln schaltbar; Kernachse probabilistisch (DA/DB)
+%         vs. deterministisch (DC/DT). Ein Jailbreak genuegt oben,
+%         strukturelle Garantie unten.
+% =====================================================================
+\figpage{Fig 4 · Folie 9}{Defense-in-Depth-Stack — probabilistisch (DA/DB) vs. deterministisch (DC/DT)}
+\begin{tikzpicture}[node distance=6mm,
+    layer/.style={box, minimum width=58mm, minimum height=8mm, font=\footnotesize}]
+
+  \node[attack, draw=none, text=attackColor, font=\small\bfseries] (atk) {Angriff / Prompt-Injection};
+  \node[base, layer, below=5mm of atk] (d0) {\textbf{D0} Baseline — freies NL-to-SQL};
+
+  \node[prob, layer, below=4mm of d0] (da) {\textbf{DA} System-Prompt-Härtung · Spotlighting};
+  \node[prob, layer, below=3mm of da] (dbg) {\textbf{DB} Input-Guardrail (Llama-Guard · Prompt-Guard)};
+
+  \node[det, layer, below=5mm of dbg] (dca) {\textbf{DC-a} Least-Privilege (DB-Rollen/Grants)};
+  \node[det, layer, below=3mm of dca] (dcb) {\textbf{DC-b} Row-Level Security (USING / WITH CHECK)};
+  \node[det, layer, below=3mm of dcb] (dcc) {\textbf{DC-c} Column-Masking (Views)};
+
+  \node[db, below=5mm of dcc, minimum width=34mm] (db) {PostgreSQL 16};
+
+  % Request-Pfeil durch den Stack
+  \draw[flow] (atk) -- (d0);
+  \draw[flow] (d0) -- (da);
+  \draw[flow] (da) -- (dbg);
+  \draw[flow] (dbg) -- (dca);
+  \draw[flow] (dca) -- (dcb);
+  \draw[flow] (dcb) -- (dcc);
+  \draw[flow] (dcc) -- (db);
+
+  % Klammern: probabilistisch vs deterministisch
+  \draw[decorate, decoration={brace, amplitude=6pt}, line width=0.8pt, probColor!90]
+        ($(da.north east)+(4mm,0)$) -- ($(dbg.south east)+(4mm,0)$)
+        node[midway, right=7pt, align=left, font=\scriptsize, text=probColor!90]
+        {\textbf{probabilistisch}\\ein Jailbreak\\genügt};
+
+  \draw[decorate, decoration={brace, amplitude=6pt}, line width=0.8pt, detColor!90]
+        ($(dca.north east)+(17mm,0)$) -- ($(dcc.south east)+(17mm,0)$)
+        node[midway, right=7pt, align=left, font=\scriptsize, text=detColor!90]
+        {\textbf{deterministisch}\\strukturelle\\Garantie};
+
+  % DT als alternative Architektur (Seitenzweig)
+  \node[det, layer, right=44mm of dcb, minimum width=46mm, fill=detColor!28] (dt)
+        {\textbf{DT} Tool-Schnittstelle\\\scriptsize parametrisierte Templates $\rightarrow$ LLM05 entfällt};
+  \draw[flow, detColor!80] (d0.east) .. controls +(3.0,0) and +(0,2.2) .. (dt.north)
+        node[lbl, pos=0.5, text=detColor!80, xshift=11mm]{Empfehlung};
+  \draw[flow, detColor!80] (dt.south) .. controls +(0,-2.2) and +(3.0,0) .. (db.east);
+
+  % D++ Hinweis
+  \node[caption, below=4mm of db] {D++ = DA + DB + DC-a/b/c sequenziell · jeder Layer separat vermessen};
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 5 -- Folie 10: RLS + Identitaets-Propagation
+%  Punkt: Nicht das LLM entscheidet. Identitaet out-of-band (LDAP) ->
+%         Session -> RLS. Jailbreak erzeugt boeses SQL, DB liefert
+%         fremde Zeile PHYSISCH NICHT zurueck.
+% =====================================================================
+\figpage{Fig 5 · Folie 10}{RLS + Identitäts-Propagation — Jailbreak trifft, DB liefert fremde Zeile nicht}
+\begin{tikzpicture}[node distance=12mm]
+
+  \node[proc] (user) {Nutzer\\\scriptsize (Login)};
+  \node[infra, right=20mm of user] (ldap) {LDAP / AD\\\scriptsize (Rolle, Tenant)};
+  \node[infra, right=20mm of ldap, minimum width=32mm] (gw)
+        {Gateway\\\scriptsize setzt Rolle+Tenant\\\scriptsize in DB-Session};
+  \node[db, right=24mm of gw, minimum width=32mm, minimum height=20mm] (db)
+        {PostgreSQL\\[1pt]\scriptsize \textbf{RLS}\\\scriptsize USING / WITH CHECK};
+
+  \draw[flow] (user) -- node[lbl, above]{1. Auth} (ldap);
+  \draw[flow] (ldap) -- node[lbl, above]{2. Identität} (gw);
+  \draw[flow] (gw) -- node[lbl, above, align=center]{3. Session\\\scriptsize transaktionslokal} (db);
+
+  % Jailbreak-Pfad: Prompt -> LLM -> boeses SQL
+  \node[proc, below=22mm of ldap, fill=attackColor!10, draw=attackColor!70] (llm)
+        {LLM (NL-to-SQL)};
+  \node[lbl, below=2mm of llm, text=attackColor, align=center, text width=46mm] (jb)
+        {Jailbreak: \textit{„lies alle Bestellungen“} · \textit{„Rolle $\rightarrow$ Admin“}};
+  \draw[attack] (user.south) |- (llm.west);
+  \draw[attack] (llm.east) -| node[lbl, pos=0.25, above, text=attackColor]{bösartiges SQL} (db.south);
+
+  % Ergebnis: fremde Zeile geblockt
+  \node[box, right=12mm of db, fill=detColor!15, draw=detColor!80, text width=58mm, font=\small] (res)
+        {Fremde Zeile kommt \textbf{physisch nicht zurück}; verbotener Write wird abgewiesen};
+  \draw[flow, detColor!80] (db) -- (res);
+
+  % Unsichtbarer Platzhalter rechts -> verschiebt die zentrierte Grafik
+  % um ~3 cm nach links (sonst wird die gruene Box rechts abgeschnitten).
+  \node[right=140mm of res, inner sep=0pt] (padR) {};
+
+  % Sicherheitskern
+  \node[caption, below=9mm of jb.south, anchor=north, text width=170mm, align=center]
+        {Auch bei erfolgreichem Jailbreak entscheidet die DB nach \emph{propagierter} Identität —
+         nicht nach dem Prompt. Identität nie aus dem Prompt, App-Rolle nicht privilegiert (kein Owner-Bypass).};
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 6 -- Folie 11: DT -- Vorher/Nachher
+%  Punkt: LLM degradiert vom "SQL-Autor" zum "Parameter-Lieferanten".
+% =====================================================================
+\figpage{Fig 6 · Folie 11}{DT — LLM vom „SQL-Autor“ zum „Parameter-Lieferanten“}
+\begin{tikzpicture}[node distance=8mm,
+    panel/.style={box, minimum width=58mm, align=left, inner sep=8pt}]
+
+  % Vorher
+  \node[panel, fill=attackColor!7, draw=attackColor!60] (before) {
+    \textbf{D0–DC: LLM als SQL-Autor}\\[3pt]
+    \scriptsize $\bullet$ LLM schreibt freies SQL\\
+    \scriptsize $\bullet$ volle Angriffsfläche (LLM05)\\
+    \scriptsize $\bullet$ jede Query potenziell bösartig
+  };
+
+  % Pfeil
+  \node[right=10mm of before] (arrowanchor) {};
+  \draw[flow, line width=1.2pt] ($(before.east)+(2mm,0)$) -- ($(before.east)+(12mm,0)$)
+        node[midway, above, lbl]{DT};
+
+  % Nachher
+  \node[panel, fill=detColor!10, draw=detColor!75, right=14mm of before] (after) {
+    \textbf{DT: LLM als Parameter-Lieferant}\\[3pt]
+    \scriptsize $\bullet$ nur geprüfte, parametrisierte Templates\\
+    \scriptsize $\bullet$ LLM füllt ausschließlich Parameter\\
+    \scriptsize $\bullet$ \textbf{LLM05 entfällt konstruktionsbedingt}
+  };
+
+  % Mini-Flow unter "Nachher"
+  \node[proc, below=10mm of after.south west, anchor=north west, minimum width=20mm, font=\scriptsize] (l) {LLM};
+  \node[infra, right=24mm of l, minimum width=26mm, font=\scriptsize] (tpl) {Template-Katalog\\\scriptsize (vordefiniert)};
+  \node[db, right=26mm of tpl, minimum width=20mm, minimum height=12mm, font=\scriptsize] (d) {DB};
+  \draw[flow] (l) -- node[lbl, above]{Parameter} (tpl);
+  \draw[flow] (tpl) -- node[lbl, above]{geprüftes SQL} (d);
+
+  \node[caption, below=4mm of l.south west, anchor=north west, text width=120mm]
+        {Doppelrolle: Experiment = obere Vergleichsgrenze · Empfehlung = Produktivarchitektur.
+         LDAP$\rightarrow$Session$\rightarrow$RLS-Kette bleibt erhalten. (DT ersetzt frühere Bezeichnung I6.)};
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 7 -- Folie 13: Hybrid-Mess-Architektur (ersetzt mermaid)
+%  Punkt: EIN reales Gateway als SUT, ZWEI entkoppelte Mess-Ebenen:
+%         Sicherheit aus der Quelle, Latenz am echten Pfad.
+% =====================================================================
+\figpage{Fig 7 · Folie 13}{Hybrid-Mess-Architektur — ein SUT, zwei entkoppelte Mess-Ebenen}
+\begin{tikzpicture}[node distance=14mm]
+
+  \node[proc, fill=attackColor!10, draw=attackColor!70, text width=34mm] (atk)
+        {PyRIT + Attacker-LLM\\\scriptsize Hermes-4-70B\\\scriptsize Multi-Turn (Crescendo)};
+
+  \node[infra, right=22mm of atk, text width=30mm] (gw)
+        {API-Gateway (FastAPI)\\\scriptsize Defense A/B · Latenz-Log};
+
+  \node[prob, above right=16mm and 78mm of gw, text width=34mm] (guard)
+        {Llama-Guard-3-8B\\+ Prompt-Guard-2-86M};
+
+  \node[proc, below=12mm of guard, text width=30mm] (target)
+        {Target-LLM\\\scriptsize Qwen3.6-27B-FP8};
+
+  \node[db, right=88mm of gw, yshift=-18mm, minimum width=30mm, minimum height=18mm] (db)
+        {PostgreSQL 16\\\scriptsize DC-a/b/c · Canaries};
+
+  \node[det, below right=20mm and 2mm of db, text width=42mm, fill=detColor!15] (oracle)
+        {\textbf{Oracle} (offline, Trace-ID-korreliert)\\\scriptsize Canary-Match · State-Diff · DB-Log $\rightarrow$ ASR};
+
+  % Live-Pfad
+  \draw[attack] (atk) -- node[lbl, above]{Trace-ID} (gw);
+  \draw[flow] (gw) -- node[lbl, pos=0.55, above]{Prompt} (target);
+  % Zwei sauber getrennte Pfeile Gateway <-> Guard (oben), ohne Ueberschnitt:
+  \draw[flow] (gw.east) to[out=30, in=210]
+        node[lbl, pos=0.5, below]{Prompt-Check} (guard.west);
+  % Guard meldet nur das Urteil zurueck (kein veraenderter Prompt) ->
+  % Gateway blockt und liefert Fehlerstatus.
+  \draw[flow, attackColor!70] (guard.north west) to[out=150, in=60]
+        node[lbl, pos=0.5, above, text=attackColor, align=center]
+        {Verdict: bösartig?\\$\rightarrow$ Block / Fehlerstatus} (gw.north);
+  \draw[flow] (target) -- node[lbl, pos=0.5, above]{NL-to-SQL} (db.north);
+  \draw[flow] (gw) -- node[lbl, below, align=center]{Identität:\\\scriptsize Rolle+Tenant} (db);
+
+  % Pfad 1: Sicherheit (aus der Quelle)
+  \draw[measure, detColor!80, line width=1.0pt] (db.south) .. controls +(0,-1.4) and +(-1.4,0.6) ..
+        node[lbl, pos=0.4, above=1mm, xshift=12mm, text=detColor!80]{Pfad 1: DB-Log + State-Diff} (oracle.west);
+
+  % Pfad 2: Latenz (am realen Pfad)
+  \draw[measure, dbColor, line width=1.0pt] (gw.south) .. controls +(0,-2.6) and +(-2.6,-0.4) ..
+        node[lbl, pos=0.45, below=1.5mm, xshift=-20mm, text=dbColor]{Pfad 2: TTFT + E2E-Latenz} (oracle.south west);
+
+  \node[caption, below=4mm of oracle.south east, anchor=north east, text width=120mm, align=right]
+        {Sicherheit aus der Quelle (nicht aus der HTTP-Antwort) · Latenz am echten Pfad — beide entkoppelt.};
+
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 8 -- Folie 14: Trade-off-Diagramm (Kernbild)
+%  Punkt: ASR-Reduktion (y) vs. Kosten Latenz/Energie (x) je Layer;
+%         DC-b liegt auf der guenstigen Pareto-Ecke.
+%  HINWEIS: Werte ILLUSTRATIV (Erwartungsbild), echte Zahlen folgen.
+% =====================================================================
+\figpage{Fig 8 · Folie 14}{Trade-off — ASR-Reduktion vs. Kosten je Layer (Kernbild)}
+\begin{tikzpicture}
+\begin{axis}[
+    width=12cm, height=8cm,
+    xlabel={Kosten je Anfrage $\rightarrow$ (Latenz / Energie)},
+    ylabel={ASR-Reduktion ggü. D0 $\rightarrow$},
+    xmin=0, xmax=10, ymin=0, ymax=100,
+    xtick=\empty,
+    ytick={0,25,50,75,100}, yticklabel={\pgfmathprintnumber{\tick}\,\%},
+    grid=both, grid style={gray!20},
+    axis lines=left,
+    tick label style={font=\footnotesize},
+    label style={font=\footnotesize},
+    every node near coord/.append style={font=\scriptsize},
+    clip=false
+  ]
+
+  % deterministische Layer (gruen): hohe Reduktion, geringe Kosten
+  \addplot[only marks, mark=*, mark size=2.6pt, detColor]
+    coordinates {(1.0,70) (2.1,84) (3.3,93) (4.6,98)};
+  \node[detColor, font=\scriptsize, anchor=west] at (axis cs:1.1,66) {DC-a};
+  \node[detColor, font=\scriptsize, anchor=west] at (axis cs:2.2,80) {\textbf{DC-b (RLS)}};
+  \node[detColor, font=\scriptsize, anchor=west] at (axis cs:3.4,93) {DC-c};
+  \node[detColor, font=\scriptsize, anchor=west] at (axis cs:4.7,98) {DT};
+
+  % probabilistische Layer (amber): mittlere Reduktion, mittlere Kosten
+  \addplot[only marks, mark=square*, mark size=2.4pt, probColor]
+    coordinates {(3.4,35) (6.8,55)};
+  \node[probColor, font=\scriptsize, anchor=west] at (axis cs:3.5,33) {DA};
+  \node[probColor, font=\scriptsize, anchor=west] at (axis cs:6.9,53) {DB (2. Modell-Call)};
+
+  % D++ kombiniert
+  \addplot[only marks, mark=triangle*, mark size=3pt, inkGray]
+    coordinates {(7.6,99)};
+  \node[inkGray, font=\scriptsize, anchor=west] at (axis cs:7.7,97) {D++};
+
+  % Baseline
+  \addplot[only marks, mark=o, mark size=2.6pt, baseColor] coordinates {(0.3,0)};
+  \node[baseColor, font=\scriptsize, anchor=west] at (axis cs:0.5,4) {D0};
+
+\end{axis}
+\node[caption, anchor=north west] at (0,-0.6) {Werte illustrativ (Erwartungsbild) — finale ASR $\pm$ CI aus den Mess-Läufen.};
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 9 -- Folie 8: Hypothesen-Kurven
+%  Punkt: H1b abnehmender Grenznutzen (ASR sinkt, flacht ab) und
+%         H2a/H2b Kosten steigen monoton (DB-Sprung durch 2. Call).
+% =====================================================================
+\figpage{Fig 9 · Folie 8}{Hypothesen-Kurven — ASR (abnehmender Grenznutzen) vs. Kosten (DB-Sprung)}
+\begin{tikzpicture}
+\begin{axis}[
+    width=11cm, height=9.5cm,
+    xlabel={Layer (kumuliert) $\rightarrow$},
+    axis y line*=left,
+    ymin=0, ymax=100,
+    ylabel={ASR (\% · schematisch)},
+    xtick={1,2,3,4,5,6},
+    xticklabels={D0,DA,DB,DC-a,DC-b,D++},
+    tick label style={font=\footnotesize},
+    label style={font=\footnotesize},
+    legend style={font=\scriptsize, at={(0.98,0.99)}, anchor=north east, nodes={inner sep=1pt}, row sep=1pt},
+    grid=both, grid style={gray!18}
+  ]
+  % ASR sinkt, abnehmender Grenznutzen (H1b)
+  \addplot[detColor, mark=*, line width=1.1pt]
+    coordinates {(1,82)(2,60)(3,46)(4,28)(5,8)(6,3)};
+  \addlegendentry{ASR (H1: jeder Layer senkt; H1b: abnehmend)}
+\end{axis}
+
+\begin{axis}[
+    width=11cm, height=9.5cm,
+    axis y line*=right,
+    axis x line=none,
+    ymin=0, ymax=100,
+    ylabel={Latenz-Index (schematisch)},
+    ylabel near ticks,
+    tick label style={font=\footnotesize},
+    label style={font=\footnotesize},
+    legend style={font=\scriptsize, at={(0.98,0.92)}, anchor=north east, nodes={inner sep=1pt}, row sep=1pt}
+  ]
+  % Kosten steigen monoton, DB-Sprung (H2a/H2b)
+  \addplot[probColor, mark=square*, dashed, line width=1.1pt]
+    coordinates {(1,5)(2,8)(3,70)(4,73)(5,76)(6,82)};
+  \addlegendentry{Latenz (H2a monoton; H2b DB-Sprung)}
+\end{axis}
+\node[caption, anchor=north west] at (0,-1.2)
+  {Schematisch: DB dominiert den Mehraufwand (2. Modell-Call), DC nahezu kostenneutral bei großem ASR-Effekt.};
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 10 -- Folie 15: Experiment-Matrix (Erwartungs-Heatmap)
+%  Punkt: DC faehrt Cross-Tenant-Ziele deterministisch auf ~0;
+%         Restwert von DA/DB v.a. bei G-S1.
+% =====================================================================
+\figpage{Fig 10 · Folie 15}{Experiment-Matrix — Erwartungsbild je Ziel $\times$ Layer (Heatmap)}
+\begin{tikzpicture}[
+    c/.style={minimum width=26mm, minimum height=9mm, font=\scriptsize,
+              align=center, inner sep=1pt},
+    h/.style={font=\scriptsize\bfseries, align=center, inner sep=2pt},
+    rl/.style={font=\scriptsize, anchor=east, inner sep=3pt},
+    g0/.style={c, fill=okGreen},       % ~0 (deterministisch gebrochen)
+    gp/.style={c, fill=partYellow},    % teilweise
+    gr/.style={c, fill=noRed}          % Hauptlast
+  ]
+  \def\cw{28mm}\def\rh{9mm}
+
+  % Spaltenkoepfe
+  \node[h] at (1*\cw,0) {DA / DB\\\scriptsize (probabil.)};
+  \node[h] at (2*\cw,0) {DC\\\scriptsize (determin.)};
+  \node[h] at (3*\cw,0) {DT};
+
+  % Zeilen
+  \foreach \i/\name/\a/\at/\b/\bt/\d/\dt in {
+     1/{G-R1 Cross-Tenant-Read}/gp/{teilweise}/g0/{0 (DC-b)}/g0/{0},
+     2/{G-R2 Column-Read}/gp/{teilweise}/g0/{0 (DC-c)}/g0/{0},
+     3/{G-W1 Unauth. Write}/gp/{schwach}/g0/{0 (DC-b)}/g0/{0},
+     4/{G-W2 Escalation}/gp/{schwach}/g0/{0 (DC-a/b)}/g0/{0},
+     5/{G-W3 Destruktiv}/gp/{schwach}/g0/{0 (DC-a)}/g0/{0},
+     6/{G-S1 Stored Injection}/gr/{Haupt-DA/DB}/gp/{nur wenn Aktion DB trifft}/gp/{reduziert}
+  }{
+     \node[rl] at (0.45*\cw,-\i*\rh) {\name};
+     \node[\a] at (1*\cw,-\i*\rh) {\at};
+     \node[\b] at (2*\cw,-\i*\rh) {\bt};
+     \node[\d] at (3*\cw,-\i*\rh) {\dt};
+  }
+
+  % Legende
+  \node[g0, anchor=west] (e1) at (0.3*\cw,-7.4*\rh) {$\approx$0};
+  \node[font=\scriptsize, anchor=west] at (e1.east) {\,deterministisch gebrochen};
+  \node[gp, anchor=west] (e2) at (3.0*\cw,-7.4*\rh) {teilweise};
+  \node[gr, anchor=west] (e3) at (4.1*\cw,-7.4*\rh) {Hauptlast};
+
+  \node[caption, anchor=north west] at (0.45*\cw,-8.4*\rh)
+        {Restwert von DA/DB v.a. bei G-S1 + Intra-Row $\rightarrow$ Kern von H3c$'$.};
+\end{tikzpicture}
+
+% =====================================================================
+%  FIG 11 -- Folie 17: Zeitplan (Gantt)
+%  Punkt: Juni Fundament, Juli Pipeline/Messen, August Auswerten;
+%         Abgabe 22.08.2026.
+% =====================================================================
+\figpage{Fig 11 · Folie 17}{Zeitplan — Juni/Juli/August, Abgabe 22.08.2026 (Gantt)}
+\begin{ganttchart}[
+    hgrid, vgrid={*{1}{draw=gray!18}},
+    x unit=7.5mm, y unit chart=6.5mm, y unit title=7mm,
+    title height=1, title label font=\footnotesize\bfseries,
+    bar height=0.6, bar label font=\scriptsize,
+    bar/.append style={fill=dbColor!35, draw=dbColor!80},
+    group label font=\scriptsize\bfseries,
+    milestone label font=\scriptsize\bfseries,
+    milestone/.append style={fill=attackColor!80, draw=attackColor}
+  ]{1}{12}
+
+  % Monatsleiste (je 4 Wochen)
+  \gantttitle{Juni}{4}\gantttitle{Juli}{4}\gantttitle{August}{4} \\
+
+  \ganttgroup{Fundament}{1}{4} \\
+  \ganttbar{Literatur · OWASP-Mapping · Bedrohungsmodell}{1}{3} \\
+  \ganttbar{DB-Schema · RLS · Canaries · Modell-Pinning}{2}{4} \\
+
+  \ganttgroup{Pipeline \& Messaufbau}{5}{8} \\
+  \ganttbar{Gateway · LDAP · Defense A/B · DT-Templates}{5}{7} \\
+  \ganttbar{Oracle · Legitim-Set · PyRIT/Promptfoo/garak}{6}{8} \\
+
+  \ganttgroup{Messen \& Finalisieren}{6}{12} \\
+  \ganttbar{Red-Teaming-Läufe (Layer $\times$ Ziele)}{7}{11} \\
+  \ganttbar{Schreiben der Arbeit}{7}{12} \\
+  \ganttbar{Auswertung · Trade-off · 2. Topologie}{9}{11} \\
+  \ganttbar{Korrektur}{11}{12} \\
+  \ganttmilestone{Abgabe 22.08.}{12}
+
+\end{ganttchart}
+
+\end{document}
