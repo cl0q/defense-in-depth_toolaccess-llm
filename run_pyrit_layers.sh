@@ -3,7 +3,8 @@
 #
 # Mirrors run_promptfoo_layers.sh: for every layer profile it applies the
 # defense configuration, (optionally) restarts the gateway, then runs
-# run_pyrit.py so each layer gets its own crescendo/red-team artifact.
+# run_pyrit.py for each attack strategy so every layer×strategy pair gets
+# its own artifact.
 #
 # Prerequisites
 # -------------
@@ -17,10 +18,18 @@
 # -----
 #   bash run_pyrit_layers.sh
 #   GATEWAY_MANAGE=0 bash run_pyrit_layers.sh   # manage gateway yourself
-#   PYRIT_STRATEGY=redteam bash run_pyrit_layers.sh
+#   PYRIT_STRATEGIES=crescendo,tap bash run_pyrit_layers.sh
+#   PYRIT_STRATEGY=redteam bash run_pyrit_layers.sh   # single-strategy compat
 #   PYRIT_GOALS=G-R1,G-R2 bash run_pyrit_layers.sh
 #
-# Output is teed to per-layer run.log, so colours are auto-disabled there to keep
+# Directory layout:  <artifact_root>/<run_id>/<strategy>/<layer>/
+#   pyrit.results.json  — attack results (analysis/stats.py compatible)
+#   run.log             — runner stdout/stderr
+#   pyrit.db            — PyRIT SQLite memory (optional, --db-path)
+#   gateway.log         — gateway stdout (one file per layer, shared across strategies)
+#   power_log.jsonl     — per-call energy measurements
+#
+# Output is teed to per-run.log, so colours are auto-disabled there to keep
 # logs clean.  Single interactive runs (redteam/run_pyrit.py directly) get full
 # colour automatically; set PYRIT_FORCE_COLOR=1 to force ANSI even through a pipe.
 
@@ -36,7 +45,9 @@ run_id="${PYRIT_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 git_sha="${GIT_SHA:-$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 
 # --- Attack config -----------------------------------------------------------
-strategy="${PYRIT_STRATEGY:-crescendo}"
+# PYRIT_STRATEGIES accepts a comma-separated list; PYRIT_STRATEGY (singular) is
+# kept for backward compatibility when only one strategy is wanted.
+strategies_csv="${PYRIT_STRATEGIES:-${PYRIT_STRATEGY:-crescendo}}"
 goals="${PYRIT_GOALS:-}"          # empty = all goals
 max_turns="${PYRIT_MAX_TURNS:-10}"
 trials="${PYRIT_TRIALS:-1}"       # repeat each goal N times -> leak-rate
@@ -72,7 +83,7 @@ mkdir -p "$run_dir"
 cat > "$run_dir/manifest.txt" <<EOF
 run_id=$run_id
 git_sha=$git_sha
-strategy=$strategy
+strategies=$strategies_csv
 goals=${goals:-all}
 max_turns=$max_turns
 trials=$trials
@@ -249,18 +260,19 @@ if [ -n "$layers_override" ]; then
   IFS=',' read -r -a layers <<< "$layers_override" || true
 fi
 
+IFS=',' read -r -a strategies <<< "$strategies_csv" || true
+
 for layer in "${layers[@]}"; do
-  layer_dir="$run_dir/$layer"
-  mkdir -p "$layer_dir"
+  # gateway.log and power_log are per-layer (shared across strategies for
+  # the same layer run, since the gateway is only restarted once per layer).
+  layer_base_dir="$run_dir/$layer"
+  mkdir -p "$layer_base_dir"
 
-  results_file="$layer_dir/pyrit.results.json"
-  log_file="$layer_dir/run.log"
-  gateway_log="$layer_dir/gateway.log"
-  power_log="$layer_dir/power_log.jsonl"
-  db_file="$layer_dir/pyrit.db"
+  gateway_log="$layer_base_dir/gateway.log"
+  power_log="$layer_base_dir/power_log.jsonl"
 
-  echo "=== Layer ${layer}: applying defense profile ===" | tee "$log_file"
-  "$repo_root/set_layer.sh" "$layer" 2>&1 | tee -a "$log_file"
+  echo "=== Layer ${layer}: applying defense profile ===" | tee "$layer_base_dir/apply.log"
+  "$repo_root/set_layer.sh" "$layer" 2>&1 | tee -a "$layer_base_dir/apply.log"
 
   if [ "$gateway_manage" = "1" ]; then
     stop_gateway
@@ -270,23 +282,32 @@ for layer in "${layers[@]}"; do
     read -r _
   fi
 
-  echo "Running PyRIT ${strategy} for layer ${layer}" | tee -a "$log_file"
+  for strategy in "${strategies[@]}"; do
+    strat_layer_dir="$run_dir/$strategy/$layer"
+    mkdir -p "$strat_layer_dir"
 
-  goals_arg=""
-  if [ -n "$goals" ]; then
-    goals_arg="--goals $goals"
-  fi
+    results_file="$strat_layer_dir/pyrit.results.json"
+    log_file="$strat_layer_dir/run.log"
+    db_file="$strat_layer_dir/pyrit.db"
 
-  "$pyrit_python" "$repo_root/redteam/run_pyrit.py" \
-    --layer "$layer" \
-    --output "$results_file" \
-    --strategy "$strategy" \
-    --max-turns "$max_turns" \
-    --trials "$trials" \
-    --run-id "$run_id" \
-    --db-path "$db_file" \
-    ${goals_arg} \
-    2>&1 | tee -a "$log_file"
+    echo "Running PyRIT ${strategy} for layer ${layer}" | tee "$log_file"
+
+    goals_arg=""
+    if [ -n "$goals" ]; then
+      goals_arg="--goals $goals"
+    fi
+
+    "$pyrit_python" "$repo_root/redteam/run_pyrit.py" \
+      --layer "$layer" \
+      --output "$results_file" \
+      --strategy "$strategy" \
+      --max-turns "$max_turns" \
+      --trials "$trials" \
+      --run-id "$run_id" \
+      --db-path "$db_file" \
+      ${goals_arg} \
+      2>&1 | tee -a "$log_file"
+  done
 done
 
 stop_gateway
@@ -321,9 +342,10 @@ echo "╔═══════════════════════�
 echo "║                        SWEEP COMPLETE                                  ║"
 echo "╚══════════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "  RUN ID:    $run_id"
-echo "  Artifacts: $run_dir"
-echo "  Layers:    ${layers[*]}"
+echo "  RUN ID:     $run_id"
+echo "  Artifacts:  $run_dir"
+echo "  Layers:     ${layers[*]}"
+echo "  Strategies: ${strategies[*]}"
 echo ""
 echo "  ────────────────────────────────────────────────────────────────────"
 echo "  ANALYZE EVERYTHING — just run:"

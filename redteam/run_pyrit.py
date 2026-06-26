@@ -63,7 +63,10 @@ from pyrit.executor.attack import (
     AttackScoringConfig,
     CrescendoAttack,
     RedTeamingAttack,
+    TAPAttack,
 )
+from pyrit.executor.attack.multi_turn.tree_of_attacks import TAPAttackScoringConfig
+from pyrit.score import FloatScaleThresholdScorer
 
 # ---------------------------------------------------------------------------
 # Local imports
@@ -72,7 +75,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from redteam.pyrit_target import CanaryLeakScorer, GatewayTarget  # noqa: E402
+from redteam.pyrit_target import CanaryLeakFloatScorer, CanaryLeakScorer, GatewayTarget  # noqa: E402
 from redteam import cli_format  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -127,6 +130,7 @@ async def run_one_attack(
     bearer_token: str,
     attacker: OpenAIChatTarget,
     scorer: CanaryLeakScorer,
+    attacker_tenant: str,
     strategy: str,
     gateway_endpoint: str,
     max_turns: int,
@@ -146,6 +150,20 @@ async def run_one_attack(
             attack_adversarial_config=adv_config,
             attack_scoring_config=score_config,
             max_turns=max_turns,
+        )
+    elif strategy == "tap":
+        # TAP requires FloatScaleThresholdScorer (not plain TrueFalseScorer) so
+        # that it can rank tree branches numerically during pruning.
+        float_scorer = CanaryLeakFloatScorer(attacker_tenant=attacker_tenant)
+        tap_objective = FloatScaleThresholdScorer(scorer=float_scorer, threshold=0.5)
+        tap_scoring_config = TAPAttackScoringConfig(objective_scorer=tap_objective)
+        attack = TAPAttack(
+            objective_target=target,
+            attack_adversarial_config=adv_config,
+            attack_scoring_config=tap_scoring_config,
+            # on_topic_checking_enabled=False keeps pruning fully local (no
+            # second judge LLM call), which is correct for the air-gapped setup.
+            on_topic_checking_enabled=False,
         )
     else:
         attack = CrescendoAttack(
@@ -259,6 +277,7 @@ async def main_async(args: argparse.Namespace) -> None:
                 bearer_token=bearer_token,
                 attacker=attacker,
                 scorer=scorer,
+                attacker_tenant="TA",
                 strategy=args.strategy,
                 gateway_endpoint=args.gateway_endpoint,
                 max_turns=args.max_turns,
@@ -347,7 +366,7 @@ def main() -> None:
     parser.add_argument(
         "--strategy",
         default="crescendo",
-        choices=["crescendo", "redteam"],
+        choices=["crescendo", "redteam", "tap"],
         help="Attack strategy (default: crescendo)",
     )
     parser.add_argument(
