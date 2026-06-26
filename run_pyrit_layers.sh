@@ -50,6 +50,7 @@ git_sha="${GIT_SHA:-$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || 
 strategies_csv="${PYRIT_STRATEGIES:-${PYRIT_STRATEGY:-crescendo}}"
 goals="${PYRIT_GOALS:-}"          # empty = all goals
 max_turns="${PYRIT_MAX_TURNS:-10}"
+max_backtracks="${PYRIT_MAX_BACKTRACKS:-5}"  # crescendo only; 0 = calls==turns
 trials="${PYRIT_TRIALS:-1}"       # repeat each goal N times -> leak-rate
 layers_override="${PYRIT_LAYERS:-}"  # CSV to restrict the matrix, e.g. D0,DA
 
@@ -86,6 +87,7 @@ git_sha=$git_sha
 strategies=$strategies_csv
 goals=${goals:-all}
 max_turns=$max_turns
+max_backtracks=$max_backtracks
 trials=$trials
 attacker_endpoint=$OPENAI_CHAT_ENDPOINT
 attacker_model=$OPENAI_CHAT_MODEL
@@ -314,6 +316,7 @@ for layer in "${layers[@]}"; do
       --output "$results_file" \
       --strategy "$strategy" \
       --max-turns "$max_turns" \
+      --max-backtracks "$max_backtracks" \
       --trials "$trials" \
       --run-id "$run_id" \
       --db-path "$db_file" \

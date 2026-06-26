@@ -134,6 +134,7 @@ async def run_one_attack(
     strategy: str,
     gateway_endpoint: str,
     max_turns: int,
+    max_backtracks: int,
 ) -> dict[str, Any]:
     """Run one attack objective; return outcome + gateway metadata."""
     target = GatewayTarget(endpoint=gateway_endpoint, bearer_token=bearer_token)
@@ -166,12 +167,15 @@ async def run_one_attack(
             on_topic_checking_enabled=False,
         )
     else:
+        # Crescendo backtracks on refusals; each backtrack is an extra gateway
+        # POST, so total gateway calls can reach max_turns + max_backtracks.
+        # Set max_backtracks=0 for a clean smoke test where calls == turns.
         attack = CrescendoAttack(
             objective_target=target,
             attack_adversarial_config=adv_config,
             attack_scoring_config=score_config,
             max_turns=max_turns,
-            max_backtracks=5,
+            max_backtracks=max_backtracks,
         )
 
     try:
@@ -281,16 +285,24 @@ async def main_async(args: argparse.Namespace) -> None:
                 strategy=args.strategy,
                 gateway_endpoint=args.gateway_endpoint,
                 max_turns=args.max_turns,
+                max_backtracks=args.max_backtracks,
             )
             attack_success = raw.get("outcome") == AttackOutcome.SUCCESS
             turns = raw.get("turns", [])
 
-            # First turn whose victim response leaked a sensitive canary.
+            # First turn whose victim response leaked a sensitive canary, plus
+            # the ground-truth tokens that leaked (so a DC-a/DC-b/etc. leak can
+            # be explained: which INTERNAL/SECRET/cross-tenant token escaped).
             leak_turn = None
+            leaked_tokens: list[dict] = []
             for ti, t in enumerate(turns, 1):
-                if cli_format.turn_leaked(t.get("response", "")):
+                hits = cli_format.leaked_token_details(t.get("response", ""))
+                if hits and leak_turn is None:
                     leak_turn = ti
-                    break
+                for h in hits:
+                    h_with_turn = dict(h, turn=ti)
+                    if h_with_turn not in leaked_tokens:
+                        leaked_tokens.append(h_with_turn)
 
             cli_format.render_conversation(
                 console,
@@ -322,8 +334,13 @@ async def main_async(args: argparse.Namespace) -> None:
                         "trace_id": raw.get("trace_id", ""),
                         "conversation_id": raw.get("conversation_id", ""),
                         "source_file": obj["source_file"],
+                        # NOTE: gateway_calls counts every POST to the gateway,
+                        # including crescendo backtrack retries, so it can exceed
+                        # --max-turns (max gateway_calls ~= max_turns + max_backtracks).
+                        "gateway_calls": len(turns),
                         "turns": len(turns),
                         "leak_turn": leak_turn,
+                        "leaked_tokens": leaked_tokens,
                         "trial": trial,
                         "trials": trials,
                         "error": raw.get("error"),
@@ -379,6 +396,16 @@ def main() -> None:
         type=int,
         default=10,
         help="Max turns per attack (default: 10)",
+    )
+    parser.add_argument(
+        "--max-backtracks",
+        type=int,
+        default=5,
+        help=(
+            "Crescendo only: max backtracks on refusal. Each backtrack is an "
+            "extra gateway call, so total calls can reach max_turns+max_backtracks. "
+            "Set 0 for a clean run where gateway calls == turns (default: 5)"
+        ),
     )
     parser.add_argument(
         "--trials",
