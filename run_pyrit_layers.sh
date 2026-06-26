@@ -107,34 +107,105 @@ preflight_check() {
   if [ -n "$pid" ]; then
     local cmd
     cmd=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
-    echo ""
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║  PREFLIGHT FAIL: port ${gateway_port} is already in use!          ║"
-    echo "║                                                              ║"
-    echo "║  PID $pid  ($cmd)  is listening on that port.              ║"
-    echo "║                                                              ║"
-    echo "║  Options:                                                    ║"
-    echo "║    1. Kill it first:  kill $pid                             ║"
-    echo "║    2. Skip gateway management: GATEWAY_MANAGE=0             ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
-    echo ""
-    exit 1
+    # Port 8000 is exclusively the gateway in this stack (victim=8001,
+    # attacker=8002, guard=8003), so a listener here is almost always an
+    # orphaned gateway from a previous/interrupted run. Auto-recover since we
+    # manage the gateway ourselves (GATEWAY_MANAGE=1).
+    echo "[preflight] port ${gateway_port} already in use by pid ${pid} (${cmd}); reclaiming it..."
+    local all
+    all=$( { ss -tlnp "sport = :${gateway_port}" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u; } \
+           || { lsof -ti "tcp:${gateway_port}" 2>/dev/null | sort -u; } || true )
+    [ -z "$all" ] && all="$pid"
+    for p in $all; do kill "$p" 2>/dev/null || true; done
+    sleep 1
+    for p in $all; do kill -9 "$p" 2>/dev/null || true; done
+    sleep 1
+    pid=$( { ss -tlnp "sport = :${gateway_port}" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1; } \
+           || { lsof -ti "tcp:${gateway_port}" 2>/dev/null | head -1; } || true )
+    if [ -n "$pid" ]; then
+      echo "[preflight] could not free port ${gateway_port} (pid ${pid} still listening). Aborting." >&2
+      exit 1
+    fi
+    echo "[preflight] port ${gateway_port} is now free."
   fi
 }
 preflight_check
 
+# Return the PID(s) currently listening on the gateway port (one per line).
+listeners_on_port() {
+  if command -v ss &>/dev/null; then
+    { ss -tlnp "sport = :${gateway_port}" 2>/dev/null \
+        | grep -oP 'pid=\K[0-9]+' | sort -u; } || true
+  elif command -v lsof &>/dev/null; then
+    { lsof -ti "tcp:${gateway_port}" 2>/dev/null | sort -u; } || true
+  fi
+}
+
+# Kill anything still bound to the gateway port. This is the safety net that
+# prevents an orphaned gateway from a previous/interrupted run (or a botched
+# restart) from silently serving the wrong defense profile for the whole sweep.
+free_gateway_port() {
+  local pids
+  pids="$(listeners_on_port)"
+  [ -z "$pids" ] && return 0
+  echo "[gateway] freeing port ${gateway_port} (stale pids: $(echo $pids | tr '\n' ' '))"
+  for p in $pids; do kill "$p" 2>/dev/null || true; done
+  sleep 1
+  pids="$(listeners_on_port)"
+  if [ -n "$pids" ]; then
+    for p in $pids; do kill -9 "$p" 2>/dev/null || true; done
+    sleep 1
+  fi
+}
+
 stop_gateway() {
   if [ -n "$gateway_pid" ] && kill -0 "$gateway_pid" 2>/dev/null; then
     kill "$gateway_pid" 2>/dev/null || true
+    local waited=0
+    while kill -0 "$gateway_pid" 2>/dev/null && [ "$waited" -lt 10 ]; do
+      sleep 0.5
+      waited=$((waited + 1))
+    done
+    kill -9 "$gateway_pid" 2>/dev/null || true
     wait "$gateway_pid" 2>/dev/null || true
   fi
   gateway_pid=""
+  # Belt-and-suspenders: ensure the port is actually free before the next start.
+  free_gateway_port
+}
+
+# Assert the live gateway reports the layer profile we intended. Catches the
+# class of bug where a stale/orphaned gateway keeps serving an old profile:
+# without this, every layer silently ran as D0.
+verify_active_layer() {
+  local expected="$1"
+  local reported
+  reported="$(curl -fsS "http://${gateway_host}:${gateway_port}/layers" 2>/dev/null \
+                | grep -oP '"active_layers"\s*:\s*\[\K[^]]*' | tr -d ' "' )"
+  echo "[gateway] reports active_layers=[${reported}] (intended profile=${expected})"
+  if [ "$expected" = "D0" ]; then
+    if [ "$reported" != "D0" ]; then
+      echo "FATAL: D0 profile but gateway reports [${reported}]." >&2
+      return 1
+    fi
+  else
+    # Any non-baseline profile must NOT report a bare D0 (the orphan signature),
+    # and must not be empty.
+    if [ -z "$reported" ] || [ "$reported" = "D0" ]; then
+      echo "FATAL: profile=${expected} but gateway reports [${reported}] — stale/orphaned gateway?" >&2
+      return 1
+    fi
+  fi
 }
 
 start_gateway() {
   local log_file="$1"
   local power_log_file="$2"
-  ( cd "$repo_root" && PYTHONPATH=. POWER_LOG_FILE="$power_log_file" \
+  local expected_layer="$3"
+  # exec replaces the subshell with uvicorn so $! IS the uvicorn PID. Without
+  # exec, $! is the subshell and `kill` would orphan uvicorn, leaving it bound
+  # to the port and serving a stale profile for the rest of the sweep.
+  ( cd "$repo_root" && exec env PYTHONPATH=. POWER_LOG_FILE="$power_log_file" \
       "$gateway_python" -m uvicorn gateway.app:app \
       --host "$gateway_host" --port "$gateway_port" >>"$log_file" 2>&1 ) &
   gateway_pid=$!
@@ -152,7 +223,21 @@ start_gateway() {
     fi
     sleep 1
   done
-  echo "[gateway] up (pid=$gateway_pid) for $(basename "$(dirname "$log_file")")"
+
+  # Confirm OUR uvicorn (or its child) owns the port — not a leftover orphan.
+  local owner
+  owner="$(listeners_on_port | head -1)"
+  if [ -n "$owner" ] && [ "$owner" != "$gateway_pid" ]; then
+    local parent
+    parent="$(ps -o ppid= -p "$owner" 2>/dev/null | tr -d ' ' || true)"
+    if [ "$parent" != "$gateway_pid" ]; then
+      echo "FATAL: port ${gateway_port} served by pid ${owner}, not our gateway ${gateway_pid} (orphan?)." >&2
+      return 1
+    fi
+  fi
+
+  echo "[gateway] up (pid=$gateway_pid) for ${expected_layer}"
+  verify_active_layer "$expected_layer"
 }
 
 trap stop_gateway EXIT
@@ -179,7 +264,7 @@ for layer in "${layers[@]}"; do
 
   if [ "$gateway_manage" = "1" ]; then
     stop_gateway
-    start_gateway "$gateway_log" "$power_log"
+    start_gateway "$gateway_log" "$power_log" "$layer"
   else
     echo "GATEWAY_MANAGE=0: restart the gateway so ${layer} flags load, then press Enter."
     read -r _

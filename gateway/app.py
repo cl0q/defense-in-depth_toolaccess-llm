@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from .identity import get_current_identity
 from .defense_a import apply_defense_a, get_hardened_system_prompt
 from .defense_b import apply_defense_b
-from .config import get_config, get_active_layers
+from .config import get_config, get_active_layers, env_provenance
 from .db import execute_transaction
 from .templates import execute_template, get_allowed_templates_for_role
 from .power import measure as power_measure
@@ -52,6 +52,30 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # Configuration
 CONFIG = get_config()
+
+@app.on_event("startup")
+def _log_layer_provenance():
+    """
+    Independently record the live defense profile in gateway.log on startup.
+    Proves which layers this process actually loaded — even for manual starts —
+    so a stale/orphaned gateway serving the wrong profile is visible without the
+    harness /layers assertion.
+    """
+    prov = env_provenance()
+    logger.info(
+        "Gateway startup: active_layers=%s env_file=%s (found=%s)",
+        get_active_layers(), prov["env_file"], prov["env_file_found"],
+    )
+
+@app.get("/layers")
+def layers():
+    """
+    Unauthenticated provenance endpoint: reports the defense layers this gateway
+    process loaded from its .env at startup. The red-team harness queries this
+    after (re)starting the gateway to assert the live config matches the intended
+    profile — guarding against a stale/orphaned gateway serving the wrong layer.
+    """
+    return {"active_layers": get_active_layers()}
 
 # Schema hint injected into the victim's instruction in free-SQL (non-DT) mode.
 # A real marketplace text-to-SQL assistant knows its own database schema; without
