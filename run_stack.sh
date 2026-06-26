@@ -77,6 +77,21 @@ vllm_pid=$!
 wait_for_url "http://127.0.0.1:${vllm_port}/v1/models" "vLLM"
 
 echo "Starting gateway on ${gateway_host}:${gateway_port}"
+# Refuse to start on top of a stale gateway: a leftover process on this port
+# would keep serving its old defense profile and silently invalidate runs.
+if command -v ss >/dev/null 2>&1; then
+  stale_pid=$( { ss -tlnp "sport = :${gateway_port}" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1; } || true )
+elif command -v lsof >/dev/null 2>&1; then
+  stale_pid=$( { lsof -ti "tcp:${gateway_port}" 2>/dev/null | head -1; } || true )
+else
+  stale_pid=""
+fi
+if [ -n "${stale_pid:-}" ]; then
+  echo "Port ${gateway_port} already in use by pid ${stale_pid}; kill it first or set GATEWAY_PORT." >&2
+  exit 1
+fi
+# Started directly (no wrapping subshell), so $! is uvicorn itself and the
+# cleanup trap can kill it reliably.
 "$gateway_python" -m uvicorn gateway.app:app \
   --host "$gateway_host" \
   --port "$gateway_port" \

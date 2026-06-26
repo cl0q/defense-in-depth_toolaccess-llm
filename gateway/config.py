@@ -5,16 +5,30 @@ Manages the different security layers (D0, DA, DB, DC-*, DT) and their settings.
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, List
+import os
+import logging
+
+_logger = logging.getLogger(__name__)
+
+# pydantic-settings resolves env_file relative to the process CWD, so we resolve
+# the same way to report exactly which .env (if any) backed this config.
+ENV_FILE_PATH = os.path.abspath(".env")
+ENV_FILE_FOUND = os.path.isfile(ENV_FILE_PATH)
 
 class Settings(BaseSettings):
-    # Security Layer Configuration
-    layer_d0: bool = True  # No defenses
-    layer_da: bool = True  # Defense A (System Prompt)
-    layer_db: bool = True  # Defense B (Input Guardrail)
-    layer_dc_a: bool = True  # DC-a: Role-based grants
-    layer_dc_b: bool = True  # DC-b: Row Level Security
-    layer_dc_c: bool = True  # DC-c: Column masking
-    layer_dt: bool = True  # DT: Restricted tool interface
+    # Security Layer Configuration.
+    # Defaults are fail-safe (OFF): a missing/unreadable .env must NOT silently
+    # enforce or claim defenses. set_layer.sh always writes all 7 flags, so the
+    # experiment sweep is unaffected; these defaults only govern the no-config
+    # case, where reporting an empty active set (caught by the harness /layers
+    # assertion) is far safer than faking a full defense-in-depth profile.
+    layer_d0: bool = False  # No defenses (baseline label)
+    layer_da: bool = False  # Defense A (System Prompt)
+    layer_db: bool = False  # Defense B (Input Guardrail)
+    layer_dc_a: bool = False  # DC-a: Role-based grants
+    layer_dc_b: bool = False  # DC-b: Row Level Security
+    layer_dc_c: bool = False  # DC-c: Column masking
+    layer_dt: bool = False  # DT: Restricted tool interface
     
     # Feature Flags
     enable_trace_id: bool = True
@@ -39,6 +53,18 @@ class Settings(BaseSettings):
 
 # Global configuration instance
 config = Settings()
+
+if not ENV_FILE_FOUND:
+    _logger.warning(
+        "No .env found at %s — all defense-layer flags default to OFF (baseline). "
+        "If you intended a defense profile, run set_layer.sh and (re)start the "
+        "gateway from the repo root so the flags load.",
+        ENV_FILE_PATH,
+    )
+
+def env_provenance() -> dict:
+    """Where this config was loaded from, for startup provenance logging."""
+    return {"env_file": ENV_FILE_PATH, "env_file_found": ENV_FILE_FOUND}
 
 def get_config():
     """
