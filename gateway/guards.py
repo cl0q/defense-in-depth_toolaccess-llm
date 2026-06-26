@@ -1,19 +1,18 @@
 """
-Defense B guard backends.
+Defense B guard backend: Llama Guard 3-8B served by vLLM.
 
-Three backends are supported and selected via the GUARD_BACKEND environment variable:
-  regex       - keyword / regex scan (original stub, very fast, baseline)
-  llamaguard  - Llama Guard 3-8B served by vLLM on GUARD_ENDPOINT (default http://localhost:8003/v1)
-  promptguard - Llama Prompt Guard 2-86M loaded in-process via transformers
-  both        - llamaguard AND promptguard (blocks if either blocks)
+Defense B sends each user turn to Llama Guard 3-8B (OpenAI-compatible chat API
+served by vLLM on GUARD_ENDPOINT, default http://localhost:8003/v1) and blocks
+the request if the model classifies it as unsafe.  There is no regex / keyword
+fallback — DB is exactly "what the guard LLM decides", so the evaluation
+measures the guard model itself, not a hand-written keyword list.
 
-Llama Guard 3-8B (chat, OpenAI-compatible):
-  Classifies a single user turn as safe / unsafe with a category label.
-  Model served at GUARD_ENDPOINT (port 8003).
-
-Prompt Guard 2-86M (transformers text-classification pipeline):
-  Lightweight BERT-style classifier. Labels: BENIGN, JAILBREAK, INJECTION.
-  Loaded lazily on first call; runs on CPU (tiny model, <0.3 GB).
+Model name resolution
+---------------------
+The model id is discovered at runtime from vLLM's ``GET {GUARD_ENDPOINT}/models``
+endpoint, which returns ``{"object": "list", "data": [{"id": "<name>", ...}]}``.
+We use the first model's id.  Set GUARD_MODEL to pin an explicit name and skip
+discovery.
 """
 
 import os
@@ -26,14 +25,59 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Config (read once at import time so the values can be overridden in tests)
 # ---------------------------------------------------------------------------
-GUARD_BACKEND: str = os.environ.get("GUARD_BACKEND", "regex").lower()
 GUARD_ENDPOINT: str = os.environ.get("GUARD_ENDPOINT", "http://localhost:8003/v1")
 GUARD_API_KEY: str = os.environ.get("GUARD_API_KEY", "token-abc123")
-GUARD_MODEL: str = os.environ.get("GUARD_MODEL", "llama-guard-3-8b")
+# Optional explicit override; when unset the name is discovered from /models.
+GUARD_MODEL: str = os.environ.get("GUARD_MODEL", "")
 GUARD_TIMEOUT: int = int(os.environ.get("GUARD_TIMEOUT", "15"))
 
-# Confidence threshold for Prompt Guard (0.5 is the model default).
-PROMPT_GUARD_THRESHOLD: float = float(os.environ.get("PROMPT_GUARD_THRESHOLD", "0.5"))
+# Fallback used only when discovery fails and no GUARD_MODEL override is set.
+_GUARD_MODEL_FALLBACK = "llama-guard-3-8b"
+
+# ---------------------------------------------------------------------------
+# Model name discovery
+# ---------------------------------------------------------------------------
+_resolved_model: Optional[str] = None
+
+
+def _resolve_guard_model() -> str:
+    """Return the guard model name, discovering it from vLLM's /models endpoint.
+
+    Resolution order:
+      1. GUARD_MODEL env var, if explicitly set (cached).
+      2. First id from ``GET {GUARD_ENDPOINT}/models`` (cached on success).
+      3. ``_GUARD_MODEL_FALLBACK`` if the endpoint is unreachable (NOT cached,
+         so a later call retries once the guard server is up).
+    """
+    global _resolved_model
+    if _resolved_model is not None:
+        return _resolved_model
+
+    if GUARD_MODEL:
+        _resolved_model = GUARD_MODEL
+        return _resolved_model
+
+    try:
+        resp = requests.get(
+            f"{GUARD_ENDPOINT}/models",
+            headers={"Authorization": f"Bearer {GUARD_API_KEY}"},
+            timeout=GUARD_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
+        if data:
+            model_id = data[0]["id"]
+            logger.info("Discovered guard model '%s' from %s/models", model_id, GUARD_ENDPOINT)
+            _resolved_model = model_id
+            return _resolved_model
+        logger.warning("%s/models returned no models; using fallback '%s'", GUARD_ENDPOINT, _GUARD_MODEL_FALLBACK)
+    except Exception as exc:
+        logger.warning(
+            "Could not discover guard model from %s/models (%s); using fallback '%s'",
+            GUARD_ENDPOINT, exc, _GUARD_MODEL_FALLBACK,
+        )
+    return _GUARD_MODEL_FALLBACK
+
 
 # ---------------------------------------------------------------------------
 # Llama Guard 3-8B
@@ -52,7 +96,7 @@ def check_llamaguard(text: str) -> Dict:
     """
     url = f"{GUARD_ENDPOINT}/chat/completions"
     payload = {
-        "model": GUARD_MODEL,
+        "model": _resolve_guard_model(),
         "messages": [{"role": "user", "content": text}],
         "max_tokens": 20,
         "temperature": 0.0,
@@ -74,63 +118,3 @@ def check_llamaguard(text: str) -> Dict:
         category = verdict.split("\n")[1].strip() if "\n" in verdict else "unknown"
         return {"is_safe": False, "reason": f"Llama Guard: unsafe [{category}]", "category": category, "backend": "llamaguard"}
     return {"is_safe": True, "reason": "Llama Guard: safe", "category": "safe", "backend": "llamaguard"}
-
-
-# ---------------------------------------------------------------------------
-# Prompt Guard 2-86M (lazy-loaded)
-# ---------------------------------------------------------------------------
-_prompt_guard_pipeline: Optional[object] = None
-
-
-def _get_prompt_guard_pipeline():
-    global _prompt_guard_pipeline
-    if _prompt_guard_pipeline is None:
-        try:
-            from transformers import pipeline as hf_pipeline  # type: ignore
-            model_id = os.environ.get("PROMPT_GUARD_MODEL", "meta-llama/Llama-Prompt-Guard-2-86M")
-            logger.info("Loading Prompt Guard model %s (first call, may take a moment)", model_id)
-            _prompt_guard_pipeline = hf_pipeline(
-                "text-classification",
-                model=model_id,
-                device=-1,  # CPU — model is tiny, saves VRAM for the main models
-                truncation=True,
-            )
-            logger.info("Prompt Guard model loaded")
-        except Exception as exc:
-            logger.warning("Could not load Prompt Guard model: %s", exc)
-            _prompt_guard_pipeline = None
-    return _prompt_guard_pipeline
-
-
-def check_promptguard(text: str) -> Dict:
-    """
-    Run Llama Prompt Guard 2-86M on *text*.
-
-    Labels:  BENIGN  (safe)
-             JAILBREAK  (direct jailbreak attempt)
-             INJECTION  (indirect prompt injection)
-
-    Returns:
-        {"is_safe": bool, "reason": str, "category": str, "backend": "promptguard"}
-    """
-    pipe = _get_prompt_guard_pipeline()
-    if pipe is None:
-        logger.warning("Prompt Guard unavailable; defaulting to safe")
-        return {"is_safe": True, "reason": "promptguard unavailable", "category": "unknown", "backend": "promptguard"}
-
-    try:
-        results = pipe(text[:512])  # model max length
-        top = results[0] if isinstance(results, list) else results
-        label: str = top["label"].upper()
-        score: float = top["score"]
-        if label != "BENIGN" and score >= PROMPT_GUARD_THRESHOLD:
-            return {
-                "is_safe": False,
-                "reason": f"Prompt Guard: {label} (score={score:.3f})",
-                "category": label.lower(),
-                "backend": "promptguard",
-            }
-        return {"is_safe": True, "reason": f"Prompt Guard: BENIGN (score={score:.3f})", "category": "safe", "backend": "promptguard"}
-    except Exception as exc:
-        logger.warning("Prompt Guard inference failed (%s); defaulting to safe", exc)
-        return {"is_safe": True, "reason": f"promptguard error: {exc}", "category": "unknown", "backend": "promptguard"}
