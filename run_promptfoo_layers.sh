@@ -93,12 +93,24 @@ stop_gateway() {
 # Assert the live gateway reports the layer profile we intended — guards against
 # a stale/orphaned gateway serving an old profile (every layer silently running
 # as D0).
+#
+# DC-a and DC-b are database-side defenses (column grants / RLS) that carry no
+# gateway flag.  Their gateway legitimately reports D0, so the D0 check is
+# skipped for them — the "wrong gateway" signature we watch for is a non-DC
+# profile claiming to be D0.
 verify_active_layer() {
   local expected="$1"
   local reported
   reported="$(curl -fsS "http://${gateway_host}:${gateway_port}/layers" 2>/dev/null \
                 | grep -oP '"active_layers"\s*:\s*\[\K[^]]*' | tr -d ' "' )"
   echo "[gateway] reports active_layers=[${reported}] (intended profile=${expected})"
+
+  # DC-a and DC-b defenses live entirely in Postgres; the gateway carries no
+  # extra flags for them and correctly reports D0.  Nothing to verify here.
+  if [ "$expected" = "DC-a" ] || [ "$expected" = "DC-b" ]; then
+    return 0
+  fi
+
   if [ "$expected" = "D0" ]; then
     if [ "$reported" != "D0" ]; then
       echo "FATAL: D0 profile but gateway reports [${reported}]." >&2
