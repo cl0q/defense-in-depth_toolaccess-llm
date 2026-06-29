@@ -7,6 +7,9 @@ export PYRIT_PYTHON="$PWD/redteam/pyrit_venv/bin/python"
 export PYRIT_STRATEGIES="crescendo,redteam,tap"
 export PYRIT_MAX_TURNS="${PYRIT_MAX_TURNS:-10}"
 export PYRIT_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+# Surface actual exception tracebacks from the attacker LLM when nodes fail.
+# This is a no-op for crescendo/redteam but essential for diagnosing TAP node errors.
+export PYRIT_DEBUG=1
 
 echo "=== sweep starting: run_id=$PYRIT_RUN_ID ==="
 echo "=== logs: analysis/artifacts/pyrit/$PYRIT_RUN_ID ==="
