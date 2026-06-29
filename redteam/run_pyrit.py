@@ -145,8 +145,10 @@ async def run_one_attack(
         use_score_as_feedback=True,
     )
 
+    # Shared adversarial config for crescendo and redteam (TAP creates its own).
+    adv_config = AttackAdversarialConfig(target=attacker)
+
     if strategy == "redteam":
-        adv_config = AttackAdversarialConfig(target=attacker)
         attack = RedTeamingAttack(
             objective_target=target,
             attack_adversarial_config=adv_config,
