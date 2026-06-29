@@ -44,12 +44,14 @@ import argparse
 import asyncio
 import datetime
 import json
+import logging
 import os
 import sys
 import traceback
 from pathlib import Path
 from typing import Any
 
+import httpx
 import yaml
 
 # ---------------------------------------------------------------------------
@@ -57,6 +59,7 @@ import yaml
 # ---------------------------------------------------------------------------
 from pyrit.memory import CentralMemory, SQLiteMemory
 from pyrit.models import AttackOutcome
+from pyrit.prompt_normalizer import PromptNormalizer
 from pyrit.prompt_target import OpenAIChatTarget
 from pyrit.executor.attack import (
     AttackAdversarialConfig,
@@ -88,6 +91,93 @@ ROLE_TOKEN_MAP: dict[str, str] = {
 }
 
 GOAL_TOKENS = {"G-R1", "G-R2", "G-W1", "G-W2", "G-W3", "G-S1"}
+
+
+# ---------------------------------------------------------------------------
+# Diagnostics + attacker construction
+# ---------------------------------------------------------------------------
+
+_LOG = logging.getLogger("redteam.run_pyrit")
+
+
+def setup_logging() -> None:
+    """Route PyRIT / HTTP-client logs to stderr so the *real* cause of a failed
+    attacker call is recoverable from run.log.
+
+    TAP swallows per-branch failures: it stores ``node.error_message`` and prunes
+    the branch, so a bare run only ever shows PyRIT's generic
+    ``Error sending prompt with conversation ID: ...`` wrapper — never the
+    underlying timeout / connection / HTTP error.  Raising the level on these
+    loggers (together with ``_LoggingPromptNormalizer``) surfaces the true cause.
+
+    Controlled by ``PYRIT_LOG_LEVEL`` (default ``INFO``).  Set ``WARNING`` to
+    quiet per-request httpx lines once the sweep is known-good.
+    """
+    level_name = os.getenv("PYRIT_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+
+    root = logging.getLogger()
+    # Idempotent: drop a handler we added on a previous call before re-adding.
+    root.handlers = [h for h in root.handlers if not getattr(h, "_redteam_diag", False)]
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    handler._redteam_diag = True  # type: ignore[attr-defined]
+    root.addHandler(handler)
+    root.setLevel(level)
+
+    for name in ("pyrit", "httpx", "httpcore", "openai"):
+        logging.getLogger(name).setLevel(level)
+
+
+class _LoggingPromptNormalizer(PromptNormalizer):
+    """PromptNormalizer that logs the full exception chain before re-raising.
+
+    PyRIT's normalizer wraps any target failure as
+    ``raise Exception("Error sending prompt ...") from ex`` and TAP then catches
+    that wrapper, recording only ``str(error)`` — so the original exception type
+    and traceback never reach the log.  Logging here with ``exc_info=True`` emits
+    the chained ``__cause__`` (the real timeout / connection reset / 4xx / 5xx),
+    making the cause of every pruned TAP branch visible in run.log.
+    """
+
+    async def send_prompt_async(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return await super().send_prompt_async(*args, **kwargs)
+        except Exception:
+            _LOG.error("send_prompt_async failed — underlying cause:", exc_info=True)
+            raise
+
+
+def _build_attacker() -> OpenAIChatTarget:
+    """Construct the adversarial (attacker) target with reliability knobs.
+
+    Reads OPENAI_CHAT_ENDPOINT / OPENAI_CHAT_KEY / OPENAI_CHAT_MODEL natively.
+    All robustness knobs are env-configurable so the sweep can be tuned without
+    code changes:
+
+    * ``PYRIT_ATTACKER_TIMEOUT``    — httpx timeout in seconds (default 180) so a
+      slow generation under load is not cut off prematurely.
+    * ``PYRIT_ATTACKER_MAX_TOKENS`` — explicit completion budget (default 2048)
+      so a generation cannot silently truncate to an empty / invalid response.
+    * ``PYRIT_ATTACKER_RPM``        — optional requests-per-minute cap (unset by
+      default); spaces out attacker calls if the vLLM backend is saturated.
+    """
+    timeout_s = float(os.getenv("PYRIT_ATTACKER_TIMEOUT", "180"))
+    kwargs: dict[str, Any] = {
+        "temperature": 0.7,
+        "seed": 42,
+        "httpx_client_kwargs": {"timeout": httpx.Timeout(timeout_s)},
+    }
+
+    max_tokens = os.getenv("PYRIT_ATTACKER_MAX_TOKENS", "2048").strip()
+    if max_tokens:
+        kwargs["max_completion_tokens"] = int(max_tokens)
+
+    rpm = os.getenv("PYRIT_ATTACKER_RPM", "").strip()
+    if rpm:
+        kwargs["max_requests_per_minute"] = int(rpm)
+
+    return OpenAIChatTarget(**kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -158,13 +248,31 @@ async def run_one_attack(
         float_scorer = CanaryLeakFloatScorer(attacker_tenant=attacker_tenant)
         tap_objective = FloatScaleThresholdScorer(scorer=float_scorer, threshold=0.5)
         tap_scoring_config = TAPAttackScoringConfig(objective_scorer=tap_objective)
+        # Fresh attacker client per TAP objective: TAP issues far more adversarial
+        # calls than crescendo/redteam, and reusing one client across all 9
+        # objectives eventually exhausts its connection pool (older runs collapsed
+        # to "0 turns" from goal ~5 on). A dedicated client keeps a clean pool.
+        tap_attacker = _build_attacker()
+        tap_adv_config = AttackAdversarialConfig(target=tap_attacker)
+        # batch_size caps how many tree nodes are processed in parallel. Default 1
+        # makes node processing sequential: the tree (width/depth/branching) is
+        # unchanged, so the explored branches and pruning decisions are identical
+        # and accuracy is preserved — but the attacker is never hit by a burst of
+        # concurrent generations, which was the cause of the non-retryable
+        # connection/timeout errors that silently pruned branches. Sequential
+        # processing also honours the thesis's concurrency=1 power-measurement
+        # requirement.
+        tap_batch_size = int(os.getenv("PYRIT_TAP_BATCH_SIZE", "1"))
         attack = TAPAttack(
             objective_target=target,
-            attack_adversarial_config=adv_config,
+            attack_adversarial_config=tap_adv_config,
             attack_scoring_config=tap_scoring_config,
             # on_topic_checking_enabled=False keeps pruning fully local (no
             # second judge LLM call), which is correct for the air-gapped setup.
             on_topic_checking_enabled=False,
+            batch_size=tap_batch_size,
+            # Surface the real exception behind a pruned branch (see class docs).
+            prompt_normalizer=_LoggingPromptNormalizer(),
         )
     else:
         # Crescendo backtracks on refusals; each backtrack is an extra gateway
@@ -205,12 +313,17 @@ async def run_one_attack(
 # ---------------------------------------------------------------------------
 
 async def main_async(args: argparse.Namespace) -> None:
+    # Route PyRIT / HTTP-client logs to stderr so a failed attacker call reveals
+    # its real cause (timeout / connection / HTTP error) in run.log.
+    setup_logging()
+
     # Memory MUST be initialised before any target/attack is instantiated.
     db_path = args.db_path or ":memory:"
     CentralMemory.set_memory_instance(SQLiteMemory(db_path=db_path))
 
-    # Attacker LLM — reads OPENAI_CHAT_ENDPOINT / OPENAI_CHAT_KEY / OPENAI_CHAT_MODEL
-    attacker = OpenAIChatTarget(temperature=0.7, seed=42)
+    # Attacker LLM — reads OPENAI_CHAT_ENDPOINT / OPENAI_CHAT_KEY / OPENAI_CHAT_MODEL.
+    # Shared across crescendo/redteam objectives; TAP builds its own per objective.
+    attacker = _build_attacker()
 
     # Scorer is stateless and re-used across objectives
     scorer = CanaryLeakScorer(attacker_tenant="TA")
