@@ -72,6 +72,7 @@ class State:
         self.pairs: dict[tuple[str, str], Pair] = {}
         self.live = Live()
         self._mtimes: dict[Path, float] = {}
+        self._conv_cache: dict = {}  # str(path) → {"mt": float, "data": dict, "last": str}
 
     # -- completed pairs -----------------------------------------------------
     def refresh_results(self) -> None:
@@ -133,7 +134,42 @@ class State:
         rd = self.ctx.run_dir
         if not rd or not strat or not layer:
             return []
-        return _chat_from_runlog(rd / strat / layer / "run.log")
+        stl = rd / strat / layer
+        db_path = stl / "pyrit.db"
+        res_path = stl / "pyrit.results.json"
+        if db_path.exists() and res_path.exists():
+            conv_id = self._get_conv_id(res_path, goal)
+            if conv_id:
+                turns = _chat_from_db(db_path, conv_id)
+                if turns:
+                    return turns
+        return _chat_from_runlog(stl / "run.log")
+
+    def _get_conv_id(self, results_path: Path, goal: str) -> str:
+        """Look up conversation_id from results.json (mtime-cached)."""
+        key = str(results_path)
+        mt = _mtime(results_path)
+        cached = self._conv_cache.get(key)
+        if cached is None or cached["mt"] != mt:
+            try:
+                data = json.loads(results_path.read_text(encoding="utf-8"))
+                by_goal: dict[str, str] = {}
+                last_id = ""
+                for r in data.get("results", []):
+                    g = r.get("tags", {}).get("goal", "")
+                    cid = r.get("metadata", {}).get("conversation_id", "")
+                    if g and cid:
+                        by_goal[g] = cid
+                    if cid:
+                        last_id = cid
+                cached = {"mt": mt, "data": by_goal, "last": last_id}
+                self._conv_cache[key] = cached
+            except Exception:
+                return ""
+        by_goal = cached["data"]
+        if goal and goal in by_goal:
+            return by_goal[goal]
+        return cached.get("last", "")
 
     def matrix(self):
         m = self.ctx.manifest
@@ -162,10 +198,49 @@ def _tail(p: Optional[Path], n: int) -> str:
         return ""
 
 
+
 _LAYER_TOK = r"D0|DA|DB|DC-a|DC-b|DC-c|D\+\+|DT|\u2014"
 _ROW = re.compile(
     r"^\s*(\d+)\s{2,}(.+?)\s{2,}(.+?)\s{2,}(" + _LAYER_TOK + r")\b\s*(\U0001f6a9)?\s*$"
 )
+_CANARY = re.compile(r"CANARY_")
+
+
+def _chat_from_db(db_path: Path, conv_id: str) -> list[Turn]:
+    """Read full transcript from pyrit.db filtered by conversation_id.
+
+    PyRIT stores PromptMemoryEntries with role 'user' (attacker→gateway prompt)
+    and 'assistant' (gateway response). We filter by the conversation_id that
+    run_pyrit.py stores in pyrit.results.json metadata.
+    """
+    try:
+        import sqlite3
+        uri = f"file:{db_path}?mode=ro"
+        with sqlite3.connect(uri, uri=True, timeout=1.0) as con:
+            rows = con.execute(
+                "SELECT role, original_value, sequence "
+                "FROM PromptMemoryEntries "
+                "WHERE conversation_id=? ORDER BY sequence",
+                (conv_id,),
+            ).fetchall()
+    except Exception:
+        return []
+
+    turns: list[Turn] = []
+    pending: str | None = None
+    for role, value, _seq in rows:
+        value = (value or "").strip()
+        if role in ("user", "human"):
+            pending = value
+        elif role in ("assistant", "ai") and pending is not None:
+            turns.append(Turn(
+                n=len(turns) + 1,
+                prompt=pending,
+                response=value,
+                flag=bool(_CANARY.search(value)),
+            ))
+            pending = None
+    return turns
 
 
 def _chat_from_runlog(p: Path) -> list[Turn]:

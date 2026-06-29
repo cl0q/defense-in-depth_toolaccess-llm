@@ -1,5 +1,5 @@
-"""
-RDM Textual app — Red Team Monitoring.
+﻿"""
+RDM Textual app -- Red Team Monitoring.
 
 Layout
 ------
@@ -10,15 +10,15 @@ Layout
 
 Navigation
 ----------
-  j/k or ↑↓    move rows in focused panel
-  h/l or ←/→   switch between matrix columns (strategies) when in matrix;
-                h = focus matrix, l = focus detail from turns
-  Tab           cycle focus: matrix → turns → matrix
-  Enter         in turns → focus detail
-  f             toggle follow-live (auto-tracks running strat/layer)
-  t             toggle Solarized Dark ↔ Light
-  space         pause/resume
-  q / Escape    quit
+  j/k or up/down   move rows / scroll in the focused panel
+  h                move focus left  (turns->matrix, detail->turns)
+  l / Enter        move focus right (matrix->turns, turns->detail)
+  left / right     in matrix: select strategy column
+  Tab              cycle focus: matrix -> turns -> detail -> matrix
+  f                toggle follow-live
+  t                toggle Solarized Dark <-> Light
+  space            pause/resume refresh
+  q / Escape       quit
 """
 
 from __future__ import annotations
@@ -39,16 +39,15 @@ try:
     from textual.theme import Theme
     from textual.widgets import DataTable, Footer, Static
     _OK = True
-except Exception:  # pragma: no cover
+except Exception:
     _OK = False
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.I)
-_OPEN = re.compile(r"<think>.*\Z", re.DOTALL | re.I)
-_WS = re.compile(r"\s+")
-DOT = "\u25cf"
-FLAG = "\U0001f6a9"
+_OPEN  = re.compile(r"<think>.*\Z",        re.DOTALL | re.I)
+_WS    = re.compile(r"\s+")
+DOT    = "\u25cf"
+FLAG   = "\U0001f6a9"
 
-# Palette — readable in both Solarized Dark and Light
 C_BLUE   = "#268bd2"
 C_CYAN   = "#2aa198"
 C_YELLOW = "#b58900"
@@ -71,9 +70,15 @@ SOLAR_LIGHT = dict(
 
 
 def clean(t: str, n: int = 400) -> str:
+    """Strip think-tags, collapse whitespace, truncate to n chars."""
     t = _OPEN.sub("", _THINK.sub("", t or ""))
     t = _WS.sub(" ", t).strip()
     return t[: n - 1] + "\u2026" if len(t) > n else t
+
+
+def strip_think(t: str) -> str:
+    """Remove <think> blocks; preserve whitespace and newlines (no truncation)."""
+    return _OPEN.sub("", _THINK.sub("", t or "")).strip()
 
 
 def pretty_json(s: str) -> str:
@@ -89,7 +94,7 @@ def pretty_json(s: str) -> str:
 def fmt_cell(strat: str, layer: str, st: State) -> Text:
     p = st.pairs.get((strat, layer))
     if not p:
-        return Text("·", style="dim")
+        return Text(".", style="dim")
     leaks, n = p.leaks, len(p.cells)
     return Text(f"{leaks}/{n}", style=f"bold {C_RED}" if leaks else f"{C_GREEN}")
 
@@ -110,19 +115,22 @@ if _OK:
         #nrg    { width: 1fr; border: round $warning; padding: 0 1; }
         """
         BINDINGS = [
-            Binding("q,escape",  "quit",        "Quit"),
-            Binding("r",         "refresh",     "Refresh"),
-            Binding("space",     "toggle",      "Pause"),
-            Binding("f",         "follow",      "Follow"),
-            Binding("t",         "next_theme",  "Theme"),
-            Binding("j,down",    "nav_down",    "Down"),
-            Binding("k,up",      "nav_up",      "Up"),
-            Binding("g",         "top",         "Top"),
-            Binding("G",         "bottom",      "Bottom"),
-            Binding("l,right",   "focus_right", "→ turns"),
-            Binding("h,left",    "focus_left",  "← matrix"),
-            Binding("enter",     "select",      "Select"),
-            Binding("tab",       "focus_next",  "Next", show=False),
+            Binding("q",      "quit",       "Quit"),
+            Binding("escape", "quit",       "Quit",      show=False),
+            Binding("r",      "refresh",    "Refresh",   show=False),
+            Binding("space",  "toggle",     "Pause"),
+            Binding("f",      "follow",     "Follow"),
+            Binding("t",      "next_theme", "Theme"),
+            Binding("j",      "nav_down",   "down"),
+            Binding("down",   "nav_down",   "down",      show=False),
+            Binding("k",      "nav_up",     "up"),
+            Binding("up",     "nav_up",     "up",        show=False),
+            Binding("l",      "focus_right","-> panel"),
+            Binding("h",      "focus_left", "<- panel"),
+            Binding("enter",  "select",     "Select"),
+            Binding("tab",    "focus_next", "Next",      show=False),
+            Binding("g",      "top",        "Top",       show=False),
+            Binding("G",      "bottom",     "Bottom",    show=False),
         ]
 
         def __init__(self):
@@ -131,13 +139,10 @@ if _OK:
             self.st     = State(self.ctx)
             self.paused = False
             self.follow = True
-            # (layer_idx, strat_idx) — both 0-based into manifest lists
             self.sel    = (0, 0)
             self._cur_turns: list[Turn] = []
-            self._turns_key = ("", "")   # (strat, layer) last loaded
-            self._sel_turn: int = 0      # index into _cur_turns
-
-        # ── layout ────────────────────────────────────────────────────────
+            self._turns_key = ("", "")
+            self._sel_turn: int = 0
 
         def compose(self) -> ComposeResult:
             yield Static(id="status")
@@ -152,7 +157,7 @@ if _OK:
             yield Footer()
 
         def on_mount(self):
-            for name, cfg in (("solarized-dark", SOLAR_DARK),
+            for name, cfg in (("solarized-dark",  SOLAR_DARK),
                                ("solarized-light", SOLAR_LIGHT)):
                 try:
                     self.register_theme(Theme(name=name, **cfg))
@@ -160,8 +165,10 @@ if _OK:
                     pass
             self.theme = "solarized-dark"
 
-            # matrix — cursor on cell so h/l selects strategy column
-            self.tbl = self.query_one("#matrix", DataTable)
+            self.tbl       = self.query_one("#matrix", DataTable)
+            self.turns_tbl = self.query_one("#turns",  DataTable)
+            self.detail    = self.query_one("#detail")
+
             self.tbl.cursor_type = "cell"
             strats, layers = self.st.matrix()
             self.tbl.add_column("layer", width=8)
@@ -169,20 +176,20 @@ if _OK:
                 self.tbl.add_column(s[:8], width=8)
             for ly in layers:
                 self.tbl.add_row(ly, *["·"] * len(strats), key=ly)
+            self.tbl.border_title = "matrix  arrows=col/row  Enter=chat"
 
-            # turns DataTable
-            self.turns_tbl = self.query_one("#turns", DataTable)
             self.turns_tbl.cursor_type = "row"
-            self.turns_tbl.add_column("#",  width=3)
+            self.turns_tbl.add_column("#",        width=3)
             self.turns_tbl.add_column("attacker", width=40)
             self.turns_tbl.add_column("victim",   width=50)
-            self.turns_tbl.add_column("⚑",        width=2)
+            self.turns_tbl.add_column(FLAG,       width=2)
             self.turns_tbl.show_header = True
+            self.turns_tbl.border_title = "chat  h=matrix  l/Enter=detail  j/k=row"
+
+            self.detail.border_title = "detail  h=chat  j/k=scroll"
 
             self.refresh_all()
             self.set_interval(1.0, self.refresh_all)
-
-        # ── refresh ───────────────────────────────────────────────────────
 
         def refresh_all(self):
             if not self.paused:
@@ -207,24 +214,24 @@ if _OK:
                         pass
 
         def _resolve_sel(self, strats, layers):
-            """Return (strat, layer) from current selection or live state."""
             li, ci = self.sel
             strat = strats[ci] if ci < len(strats) else (strats[0] if strats else "")
             layer = layers[li] if li < len(layers) else (layers[0] if layers else "")
             if self.follow:
                 strat = self.st.live.strategy or strat
-                layer = self.st.live.layer or layer
+                layer = self.st.live.layer    or layer
             return strat, layer
 
         def _sync_turns(self, strats, layers):
             strat, layer = self._resolve_sel(strats, layers)
             key = (strat, layer)
-            turns = self.st.live.turns if self.follow else self.st._chat(strat, layer, "")
+            turns = (self.st.live.turns
+                     if self.follow
+                     else self.st._chat(strat, layer, ""))
             if key != self._turns_key or len(turns) != len(self._cur_turns):
                 self._turns_key  = key
                 self._cur_turns  = turns
                 self._load_turns_table(turns, strat, layer)
-            # update detail for current selection
             if self._cur_turns and 0 <= self._sel_turn < len(self._cur_turns):
                 self._show_detail(self._cur_turns[self._sel_turn])
 
@@ -235,13 +242,15 @@ if _OK:
                 a = Text(clean(tn.prompt,   45), style=C_YELLOW)
                 v = Text(clean(tn.response, 55), style=f"bold {C_RED}" if tn.flag else "")
                 dt.add_row(str(tn.n), a, v, FLAG if tn.flag else "", key=str(tn.n))
-            # scroll to bottom (latest turn) when following live
             if turns and self.follow:
                 dt.move_cursor(row=len(turns) - 1)
                 self._sel_turn = len(turns) - 1
-            title = f"chat  {strat}/{layer}{'  (live)' if self.follow else ''}"
+            src = "db" if any(len(t.prompt) > 250 for t in turns[:3]) else "log"
+            title = (f"chat  {strat}/{layer}  [{src}]"
+                     + ("  live" if self.follow else "")
+                     + "  h=matrix  l/Enter=detail  j/k=row")
             try:
-                self.query_one("#turns").border_title = title
+                self.turns_tbl.border_title = title
             except Exception:
                 pass
 
@@ -249,15 +258,13 @@ if _OK:
             t = Text()
             if tn.prompt:
                 t.append("ATTACKER\n", style=f"bold {C_YELLOW}")
-                t.append(clean(tn.prompt, 4000) + "\n\n", style=C_YELLOW)
+                t.append(strip_think(tn.prompt) + "\n\n", style=C_YELLOW)
             if tn.response:
                 lbl = f"VICTIM  {FLAG}\n" if tn.flag else "VICTIM\n"
                 t.append(lbl, style=f"bold {C_RED}" if tn.flag else f"bold {C_CYAN}")
-                t.append(pretty_json(clean(tn.response, 8000)),
+                t.append(pretty_json(strip_think(tn.response)),
                          style=f"bold {C_RED}" if tn.flag else "")
             self.query_one("#detail-text", Static).update(t)
-
-        # ── status ────────────────────────────────────────────────────────
 
         def _status(self):
             lv   = self.st.live
@@ -266,9 +273,9 @@ if _OK:
             t.append(f"{DOT} ", style=f"bold {C_GREEN}" if live else f"bold {C_RED}")
             t.append("RDM ", style="bold")
             t.append(f"{self.ctx.run_id}", style=C_BLUE)
-            t.append(f"  layer=", style="bold"); t.append(lv.layer or "—")
-            t.append(f"  strat=", style="bold"); t.append(lv.strategy or "—")
-            t.append(f"  goal=", style="bold");  t.append(lv.goal or "—")
+            t.append("  layer=", style="bold"); t.append(lv.layer    or "--", style=C_CYAN)
+            t.append("  strat=", style="bold"); t.append(lv.strategy or "--", style=C_CYAN)
+            t.append("  goal=",  style="bold"); t.append(lv.goal     or "--")
             t.append(f" [{lv.idx}/{lv.total}]", style=C_YELLOW)
             if lv.verdict:
                 t.append(f"  {lv.verdict}",
@@ -280,17 +287,15 @@ if _OK:
                 t.append("  PAUSED", style=f"bold {C_ORANGE}")
             return t
 
-        # ── resource / energy panels ──────────────────────────────────────
-
         def _res(self):
             h, g = host(), gpu()
             t = Text()
-            t.append("CPU ", style=f"bold {C_CYAN}")
+            t.append("CPU ",  style=f"bold {C_CYAN}")
             t.append(f"{h.cpu:5.1f}%   ")
-            t.append("RAM ", style=f"bold {C_CYAN}")
+            t.append("RAM ",  style=f"bold {C_CYAN}")
             t.append(f"{h.ram_used:.1f}/{h.ram_total:.0f} GiB\n")
             if g.ok:
-                t.append("GPU ", style=f"bold {C_GREEN}")
+                t.append("GPU ",  style=f"bold {C_GREEN}")
                 t.append(f"{g.util:3d}%  ")
                 t.append(f"{g.power_w:6.1f} W  ")
                 t.append("VRAM ", style=f"bold {C_GREEN}")
@@ -303,16 +308,16 @@ if _OK:
         def _nrg(self):
             e = energy(self.ctx)
             t = Text()
-            t.append(f"calls  {e.calls}\n", style=C_CYAN)
-            t.append(f"net    {e.net_wh:.4f} Wh\n", style=f"bold {C_YELLOW}")
-            t.append(f"gross  {e.total_wh:.4f} Wh", style="dim")
-            t.append(f"  idle {e.idle_w or 0:.0f} W\n", style="dim")
+            t.append(f"calls  {e.calls}\n",              style=C_CYAN)
+            t.append(f"net    {e.net_wh:.4f} Wh\n",      style=f"bold {C_YELLOW}")
+            t.append(f"gross  {e.total_wh:.4f} Wh",      style="dim")
+            t.append(f"  idle {e.idle_w or 0:.0f} W\n",  style="dim")
             for ly, wh in list(e.per_layer.items())[:5]:
                 t.append(f"  {ly:<6}", style=f"bold {C_BLUE}")
                 t.append(f"{wh:.4f} Wh\n")
             return t
 
-        # ── actions ────────────────────────────────────────────────────────
+        # ---- actions -------------------------------------------------------
 
         def action_refresh(self):
             self.refresh_all()
@@ -322,7 +327,7 @@ if _OK:
 
         def action_follow(self):
             self.follow = not self.follow
-            self._turns_key = ("", "")  # force reload
+            self._turns_key = ("", "")
             self.refresh_all()
 
         def action_next_theme(self):
@@ -333,16 +338,22 @@ if _OK:
         def action_nav_down(self):
             fw = self.focused
             if fw is self.tbl:
-                self.tbl.action_scroll_down()
+                self.tbl.move_cursor(row=min(self.tbl.cursor_row + 1,
+                                             max(0, self.tbl.row_count - 1)))
             elif fw is self.turns_tbl:
-                self.turns_tbl.action_scroll_down()
+                self.turns_tbl.move_cursor(row=min(self.turns_tbl.cursor_row + 1,
+                                                   max(0, self.turns_tbl.row_count - 1)))
+            elif fw is self.detail:
+                self.detail.scroll_down(animate=False)
 
         def action_nav_up(self):
             fw = self.focused
             if fw is self.tbl:
-                self.tbl.action_scroll_up()
+                self.tbl.move_cursor(row=max(self.tbl.cursor_row - 1, 0))
             elif fw is self.turns_tbl:
-                self.turns_tbl.action_scroll_up()
+                self.turns_tbl.move_cursor(row=max(self.turns_tbl.cursor_row - 1, 0))
+            elif fw is self.detail:
+                self.detail.scroll_up(animate=False)
 
         def action_top(self):
             fw = self.focused
@@ -350,62 +361,62 @@ if _OK:
                 self.tbl.move_cursor(row=0)
             elif fw is self.turns_tbl:
                 self.turns_tbl.move_cursor(row=0)
+            elif fw is self.detail:
+                self.detail.scroll_home(animate=False)
 
         def action_bottom(self):
             fw = self.focused
             if fw is self.tbl:
-                self.tbl.move_cursor(row=self.tbl.row_count - 1)
+                self.tbl.move_cursor(row=max(0, self.tbl.row_count - 1))
             elif fw is self.turns_tbl:
-                r = self.turns_tbl.row_count - 1
-                self.turns_tbl.move_cursor(row=max(0, r))
+                self.turns_tbl.move_cursor(row=max(0, self.turns_tbl.row_count - 1))
+            elif fw is self.detail:
+                self.detail.scroll_end(animate=False)
 
         def action_focus_right(self):
+            """l -- move focus one panel to the right."""
             fw = self.focused
             if fw is self.tbl:
-                # l in matrix: move strategy column right
-                nc = min(len(self.st.matrix()[0]), self.tbl.cursor_column + 1)
-                self.tbl.move_cursor(column=nc)
-                self.follow = False; self._turns_key = ("", ""); self.refresh_all()
-            else:
                 self.turns_tbl.focus()
+            elif fw is self.turns_tbl:
+                self.detail.focus()
 
         def action_focus_left(self):
+            """h -- move focus one panel to the left."""
             fw = self.focused
             if fw is self.turns_tbl:
                 self.tbl.focus()
-            elif fw is self.query_one("#detail"):
+            elif fw is self.detail:
                 self.turns_tbl.focus()
-            else:
-                # in matrix: move strategy column left (stop at col 1)
-                nc = max(1, self.tbl.cursor_column - 1)
-                self.tbl.move_cursor(column=nc)
-                self.follow = False
-                self._turns_key = ("", "")
-                self.refresh_all()
 
         def action_select(self):
-            if self.focused is self.turns_tbl:
-                self.query_one("#detail").focus()
+            """Enter -- same as l."""
+            self.action_focus_right()
 
         def action_focus_next(self):
-            if self.focused is self.tbl:
+            """Tab -- cycle matrix -> turns -> detail -> matrix."""
+            fw = self.focused
+            if fw is self.tbl:
                 self.turns_tbl.focus()
+            elif fw is self.turns_tbl:
+                self.detail.focus()
             else:
                 self.tbl.focus()
 
-        # ── events ────────────────────────────────────────────────────────
+        # ---- events --------------------------------------------------------
 
         def on_data_table_cell_highlighted(self, ev: DataTable.CellHighlighted):
+            """Matrix cell navigation -> update strat/layer selection."""
             if ev.data_table is not self.tbl:
                 return
-            # column 0 is the "layer" label; strategy idx = cursor_column - 1
             strat_idx = max(0, self.tbl.cursor_column - 1)
-            self.sel = (self.tbl.cursor_row, strat_idx)
+            self.sel    = (self.tbl.cursor_row, strat_idx)
             self.follow = False
             self._turns_key = ("", "")
             self.refresh_all()
 
         def on_data_table_row_highlighted(self, ev: DataTable.RowHighlighted):
+            """Turns table row navigation -> update detail panel."""
             if ev.data_table is not self.turns_tbl:
                 return
             self._sel_turn = ev.cursor_row
@@ -419,4 +430,3 @@ def run():
         return 1
     RDM().run()
     return 0
-
