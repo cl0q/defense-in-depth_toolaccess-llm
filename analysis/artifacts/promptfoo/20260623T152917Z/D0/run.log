@@ -1,0 +1,262 @@
+=== set_layer: profile=D0  active=[D0] ===
+[gateway] wrote layer flags to /home/secai2/defense-in-depth_toolaccess-llm/.env
+[db] applied db/teardown/02_grants_down.sql
+[db] applied db/teardown/03_rls_down.sql
+[db] applied db/teardown/04_masking_down.sql
+=== set_layer: profile=D0 applied (restart gateway to load flag changes) ===
+[33mWarning: Node.js 20 has reached end-of-life and is deprecated in promptfoo.
+
+Detected: v20.20.0
+Recommended: Node.js >=22.22.0 (Node.js 24 LTS preferred)
+
+Upgrade your Node.js runtime to avoid disruption in a future promptfoo release.[0m
+(node:972455) ExperimentalWarning: DecompressInterceptor is experimental and subject to change
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cache is disabled
+Synthesizing test cases for 1 prompt...
+Using plugins:
+
+ascii-smuggling (5 tests)
+bfla (5 tests)
+bola (5 tests)
+cross-session-leak (5 tests)
+debug-access (5 tests)
+excessive-agency (5 tests)
+harmful:chemical-biological-weapons (5 tests)
+harmful:child-exploitation (5 tests)
+harmful:copyright-violations (5 tests)
+harmful:cybercrime (5 tests)
+harmful:cybercrime:malicious-code (5 tests)
+harmful:graphic-content (5 tests)
+harmful:harassment-bullying (5 tests)
+harmful:hate (5 tests)
+harmful:illegal-activities (5 tests)
+harmful:illegal-drugs (5 tests)
+harmful:illegal-drugs:meth (5 tests)
+harmful:indiscriminate-weapons (5 tests)
+harmful:insults (5 tests)
+harmful:intellectual-property (5 tests)
+harmful:misinformation-disinformation (5 tests)
+harmful:non-violent-crime (5 tests)
+harmful:privacy (5 tests)
+harmful:profanity (5 tests)
+harmful:radicalization (5 tests)
+harmful:self-harm (5 tests)
+harmful:sex-crime (5 tests)
+harmful:sexual-content (5 tests)
+harmful:specialized-advice (5 tests)
+harmful:unsafe-practices (5 tests)
+harmful:violent-crime (5 tests)
+harmful:weapons:ied (5 tests)
+indirect-prompt-injection (5 tests)
+pii:api-db (5 tests)
+pii:direct (5 tests)
+pii:session (5 tests)
+pii:social (5 tests)
+prompt-extraction (5 tests)
+rbac (5 tests)
+shell-injection (5 tests)
+sql-injection (5 tests)
+ssrf (5 tests)
+
+Using strategies:
+
+crescendo (210 additional tests)
+jailbreak (210 additional tests)
+jailbreak-templates (210 additional tests)
+jailbreak:composite (1050 additional tests)
+jailbreak:hydra (210 additional tests)
+jailbreak:meta (210 additional tests)
+
+Test Generation Summary:
+• Total tests: 2310
+• Plugin tests: 210
+• Plugins: 42
+• Strategies: 6
+• Max concurrency: 1
+• Delay: 1000
+
+Validation failed for plugin indirect-prompt-injection: Error: Invariant failed: Indirect prompt injection plugin requires `config.indirectInjectionVar` to be set. If using this plugin in a plugin collection, configure this plugin separately., skipping plugin.
+Extracting system purpose...
+Extracting entities...
+Generating tests for ascii-smuggling...
+ascii-smuggling plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for ascii-smuggling in language: default
+Failed to generate tests for ascii-smuggling
+Generated 0 tests for ascii-smuggling
+Generating tests for bfla...
+bfla plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for bfla in language: default
+Failed to generate tests for bfla
+Generated 0 tests for bfla
+Generating tests for bola...
+bola plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for bola in language: default
+Failed to generate tests for bola
+Generated 0 tests for bola
+Generating tests for cross-session-leak...
+Generated 10 tests for cross-session-leak
+Generating tests for debug-access...
+Generated 5 tests for debug-access
+Generating tests for excessive-agency...
+Generated 5 tests for excessive-agency
+Generating tests for harmful:chemical-biological-weapons...
+harmful:chemical-biological-weapons plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:chemical-biological-weapons in language: default
+Failed to generate tests for harmful:chemical-biological-weapons
+Generated 0 tests for harmful:chemical-biological-weapons
+Generating tests for harmful:child-exploitation...
+harmful:child-exploitation plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:child-exploitation in language: default
+Failed to generate tests for harmful:child-exploitation
+Generated 0 tests for harmful:child-exploitation
+Generating tests for harmful:copyright-violations...
+harmful:copyright-violations plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:copyright-violations in language: default
+Failed to generate tests for harmful:copyright-violations
+Generated 0 tests for harmful:copyright-violations
+Generating tests for harmful:cybercrime...
+harmful:cybercrime plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:cybercrime in language: default
+Failed to generate tests for harmful:cybercrime
+Generated 0 tests for harmful:cybercrime
+Generating tests for harmful:cybercrime:malicious-code...
+harmful:cybercrime:malicious-code plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:cybercrime:malicious-code in language: default
+Failed to generate tests for harmful:cybercrime:malicious-code
+Generated 0 tests for harmful:cybercrime:malicious-code
+Generating tests for harmful:graphic-content...
+harmful:graphic-content plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:graphic-content in language: default
+Failed to generate tests for harmful:graphic-content
+Generated 0 tests for harmful:graphic-content
+Generating tests for harmful:harassment-bullying...
+harmful:harassment-bullying plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:harassment-bullying in language: default
+Failed to generate tests for harmful:harassment-bullying
+Generated 0 tests for harmful:harassment-bullying
+Generating tests for harmful:hate...
+harmful:hate plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:hate in language: default
+Failed to generate tests for harmful:hate
+Generated 0 tests for harmful:hate
+Generating tests for harmful:illegal-activities...
+harmful:illegal-activities plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:illegal-activities in language: default
+Failed to generate tests for harmful:illegal-activities
+Generated 0 tests for harmful:illegal-activities
+Generating tests for harmful:illegal-drugs...
+harmful:illegal-drugs plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:illegal-drugs in language: default
+Failed to generate tests for harmful:illegal-drugs
+Generated 0 tests for harmful:illegal-drugs
+Generating tests for harmful:illegal-drugs:meth...
+harmful:illegal-drugs:meth plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:illegal-drugs:meth in language: default
+Failed to generate tests for harmful:illegal-drugs:meth
+Generated 0 tests for harmful:illegal-drugs:meth
+Generating tests for harmful:indiscriminate-weapons...
+harmful:indiscriminate-weapons plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:indiscriminate-weapons in language: default
+Failed to generate tests for harmful:indiscriminate-weapons
+Generated 0 tests for harmful:indiscriminate-weapons
+Generating tests for harmful:insults...
+harmful:insults plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:insults in language: default
+Failed to generate tests for harmful:insults
+Generated 0 tests for harmful:insults
+Generating tests for harmful:intellectual-property...
+Generated 5 tests for harmful:intellectual-property
+Generating tests for harmful:misinformation-disinformation...
+harmful:misinformation-disinformation plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:misinformation-disinformation in language: default
+Failed to generate tests for harmful:misinformation-disinformation
+Generated 0 tests for harmful:misinformation-disinformation
+Generating tests for harmful:non-violent-crime...
+harmful:non-violent-crime plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:non-violent-crime in language: default
+Failed to generate tests for harmful:non-violent-crime
+Generated 0 tests for harmful:non-violent-crime
+Generating tests for harmful:privacy...
+Generated 5 tests for harmful:privacy
+Generating tests for harmful:profanity...
+harmful:profanity plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:profanity in language: default
+Failed to generate tests for harmful:profanity
+Generated 0 tests for harmful:profanity
+Generating tests for harmful:radicalization...
+harmful:radicalization plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:radicalization in language: default
+Failed to generate tests for harmful:radicalization
+Generated 0 tests for harmful:radicalization
+Generating tests for harmful:self-harm...
+harmful:self-harm plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:self-harm in language: default
+Failed to generate tests for harmful:self-harm
+Generated 0 tests for harmful:self-harm
+Generating tests for harmful:sex-crime...
+harmful:sex-crime plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:sex-crime in language: default
+Failed to generate tests for harmful:sex-crime
+Generated 0 tests for harmful:sex-crime
+Generating tests for harmful:sexual-content...
+harmful:sexual-content plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:sexual-content in language: default
+Failed to generate tests for harmful:sexual-content
+Generated 0 tests for harmful:sexual-content
+Generating tests for harmful:specialized-advice...
+harmful:specialized-advice plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:specialized-advice in language: default
+Failed to generate tests for harmful:specialized-advice
+Generated 0 tests for harmful:specialized-advice
+Generating tests for harmful:unsafe-practices...
+harmful:unsafe-practices plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:unsafe-practices in language: default
+Failed to generate tests for harmful:unsafe-practices
+Generated 0 tests for harmful:unsafe-practices
+Generating tests for harmful:violent-crime...
+harmful:violent-crime plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:violent-crime in language: default
+Failed to generate tests for harmful:violent-crime
+Generated 0 tests for harmful:violent-crime
+Generating tests for harmful:weapons:ied...
+harmful:weapons:ied plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for harmful:weapons:ied in language: default
+Failed to generate tests for harmful:weapons:ied
+Generated 0 tests for harmful:weapons:ied
+Generating tests for pii:api-db...
+Generated 5 tests for pii:api-db
+Generating tests for pii:direct...
+Generated 5 tests for pii:direct
+Generating tests for pii:session...
+Generated 5 tests for pii:session
+Generating tests for pii:social...
+Generated 5 tests for pii:social
+Generating tests for prompt-extraction...
+Generated 5 tests for prompt-extraction
+Generating tests for rbac...
+Generated 5 tests for rbac
+Generating tests for shell-injection...
+Generated 5 tests for shell-injection
+Generating tests for sql-injection...
+Generated 5 tests for sql-injection
+Generating tests for ssrf...
+ssrf plugin requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+[Language Processing] No tests generated for ssrf in language: default
+Failed to generate tests for ssrf
+Generated 0 tests for ssrf
+Strategy "jailbreak" is deprecated. Use "jailbreak:meta" instead. The "jailbreak" strategy used outdated single-shot optimization techniques.
+Error: Composite jailbreak strategy requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+    at addCompositeTestCases (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/strategies-C7AxuwT-.js:1992:35)
+    at action (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/strategies-C7AxuwT-.js:2142:31)
+    at applyStrategies (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:11425:35)
+    at async synthesize$1 (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:11958:82)
+    at async doGenerateRedteamInternal (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:12378:18)
+    at async Command.<anonymous> (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:12616:4)
+    at async Command.parseAsync (/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/node_modules/commander/lib/command.js:1122:5)
+    at async main (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:22504:2)
+    at async file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:22514:3
+
+There were some errors during the operation. See logs for more details.
+Error log: /home/secai2/.promptfoo/logs/promptfoo-error-2026-06-23_15-29-18-400Z.log
+Debug log: /home/secai2/.promptfoo/logs/promptfoo-debug-2026-06-23_15-29-18-400Z.log

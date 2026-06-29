@@ -1,0 +1,13 @@
+INFO:     Started server process [30667]
+INFO:     Waiting for application startup.
+[15:49:05] INFO     Gateway startup: active_layers=['D0']                       
+                    env_file=/home/secai2/defense-in-depth_toolaccess-llm/.env  
+                    (found=True)                                                
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54150 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54158 - "GET /layers HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [30667]

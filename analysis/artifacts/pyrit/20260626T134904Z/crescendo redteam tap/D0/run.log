@@ -1,0 +1,7 @@
+Running PyRIT crescendo redteam tap for layer D0
+usage: run_pyrit.py [-h] --layer LAYER --output OUTPUT
+                    [--strategy {crescendo,redteam,tap}] [--goals GOALS]
+                    [--max-turns MAX_TURNS] [--max-backtracks MAX_BACKTRACKS]
+                    [--trials TRIALS] [--gateway-endpoint GATEWAY_ENDPOINT]
+                    [--run-id RUN_ID] [--db-path DB_PATH]
+run_pyrit.py: error: argument --strategy: invalid choice: 'crescendo redteam tap' (choose from 'crescendo', 'redteam', 'tap')

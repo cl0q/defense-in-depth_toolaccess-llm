@@ -1,0 +1,173 @@
+=== set_layer: profile=D0  active=[D0] ===
+[gateway] wrote layer flags to /home/secai2/defense-in-depth_toolaccess-llm/.env
+[db] applied db/teardown/02_grants_down.sql
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:12: NOTICE:  policy "pu_admin" for relation "platform_users" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:13: NOTICE:  policy "pu_self_select" for relation "platform_users" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:14: NOTICE:  policy "pu_self_update" for relation "platform_users" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:15: NOTICE:  policy "merchants_admin" for relation "merchants" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:16: NOTICE:  policy "merchants_own" for relation "merchants" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:17: NOTICE:  policy "customers_admin" for relation "customers" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:18: NOTICE:  policy "customers_self" for relation "customers" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:19: NOTICE:  policy "customers_merchant_read" for relation "customers" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:20: NOTICE:  policy "products_admin" for relation "products" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:21: NOTICE:  policy "products_browse" for relation "products" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:22: NOTICE:  policy "products_merchant" for relation "products" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:23: NOTICE:  policy "orders_admin" for relation "orders" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:24: NOTICE:  policy "orders_customer" for relation "orders" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:25: NOTICE:  policy "orders_merchant" for relation "orders" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:26: NOTICE:  policy "order_items_admin" for relation "order_items" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:27: NOTICE:  policy "order_items_customer" for relation "order_items" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:28: NOTICE:  policy "order_items_merchant" for relation "order_items" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:29: NOTICE:  policy "payments_admin" for relation "payments" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:30: NOTICE:  policy "payments_customer" for relation "payments" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:31: NOTICE:  policy "audit_admin_read" for relation "audit_log" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:32: NOTICE:  policy "audit_append" for relation "audit_log" does not exist, skipping
+[db] applied db/teardown/03_rls_down.sql
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/04_masking_down.sql:14: NOTICE:  view "products_catalog" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/04_masking_down.sql:15: NOTICE:  view "payments_masked" does not exist, skipping
+[db] applied db/teardown/04_masking_down.sql
+=== set_layer: profile=D0 applied (restart gateway to load flag changes) ===
+[33mWarning: Node.js 20 has reached end-of-life and is deprecated in promptfoo.
+
+Detected: v20.20.0
+Recommended: Node.js >=22.22.0 (Node.js 24 LTS preferred)
+
+Upgrade your Node.js runtime to avoid disruption in a future promptfoo release.[0m
+(node:981869) ExperimentalWarning: DecompressInterceptor is experimental and subject to change
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cache is disabled
+Synthesizing test cases for 1 prompt...
+Using plugins:
+
+cross-session-leak (5 tests)
+debug-access (5 tests)
+excessive-agency (5 tests)
+harmful:intellectual-property (5 tests)
+harmful:privacy (5 tests)
+pii:api-db (5 tests)
+pii:direct (5 tests)
+pii:session (5 tests)
+pii:social (5 tests)
+prompt-extraction (5 tests)
+rbac (5 tests)
+shell-injection (5 tests)
+sql-injection (5 tests)
+
+Using strategies:
+
+crescendo (65 additional tests)
+jailbreak:hydra (65 additional tests)
+jailbreak:meta (65 additional tests)
+
+Test Generation Summary:
+• Total tests: 260
+• Plugin tests: 65
+• Plugins: 13
+• Strategies: 3
+• Max concurrency: 1
+• Delay: 1000
+
+Extracting system purpose...
+Extracting entities...
+Generating tests for cross-session-leak...
+Generated 10 tests for cross-session-leak
+Generating tests for debug-access...
+Generated 5 tests for debug-access
+Generating tests for excessive-agency...
+Generated 5 tests for excessive-agency
+Generating tests for harmful:intellectual-property...
+Generated 5 tests for harmful:intellectual-property
+Generating tests for harmful:privacy...
+Generated 5 tests for harmful:privacy
+Generating tests for pii:api-db...
+Generated 5 tests for pii:api-db
+Generating tests for pii:direct...
+Generated 5 tests for pii:direct
+Generating tests for pii:session...
+Generated 5 tests for pii:session
+Generating tests for pii:social...
+Generated 5 tests for pii:social
+Generating tests for prompt-extraction...
+Generated 5 tests for prompt-extraction
+Generating tests for rbac...
+Generated 5 tests for rbac
+Generating tests for shell-injection...
+Generated 5 tests for shell-injection
+Generating tests for sql-injection...
+Generated 5 tests for sql-injection
+
+Test Generation Report:
+[90m┌─────[39m[90m┬──────────[39m[90m┬────────────────────────────────────────[39m[90m┬────────────[39m[90m┬────────────[39m[90m┬──────────────┐[39m
+[90m│[39m[31m #   [39m[90m│[39m[31m Type     [39m[90m│[39m[31m ID                                     [39m[90m│[39m[31m Requested  [39m[90m│[39m[31m Generated  [39m[90m│[39m[31m Status       [39m[90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 1   [90m│[39m Plugin   [90m│[39m cross-session-leak                     [90m│[39m 5          [90m│[39m 10         [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 2   [90m│[39m Plugin   [90m│[39m debug-access                           [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 3   [90m│[39m Plugin   [90m│[39m excessive-agency                       [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 4   [90m│[39m Plugin   [90m│[39m harmful:intellectual-property          [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 5   [90m│[39m Plugin   [90m│[39m harmful:privacy                        [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 6   [90m│[39m Plugin   [90m│[39m pii:api-db                             [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 7   [90m│[39m Plugin   [90m│[39m pii:direct                             [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 8   [90m│[39m Plugin   [90m│[39m pii:session                            [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 9   [90m│[39m Plugin   [90m│[39m pii:social                             [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 10  [90m│[39m Plugin   [90m│[39m prompt-extraction                      [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 11  [90m│[39m Plugin   [90m│[39m rbac                                   [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 12  [90m│[39m Plugin   [90m│[39m shell-injection                        [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 13  [90m│[39m Plugin   [90m│[39m sql-injection                          [90m│[39m 5          [90m│[39m 5          [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 14  [90m│[39m Strategy [90m│[39m crescendo                              [90m│[39m 60         [90m│[39m 60         [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 15  [90m│[39m Strategy [90m│[39m jailbreak:hydra                        [90m│[39m 60         [90m│[39m 60         [90m│[39m Success      [90m│[39m
+[90m├─────[39m[90m┼──────────[39m[90m┼────────────────────────────────────────[39m[90m┼────────────[39m[90m┼────────────[39m[90m┼──────────────┤[39m
+[90m│[39m 16  [90m│[39m Strategy [90m│[39m jailbreak:meta                         [90m│[39m 70         [90m│[39m 70         [90m│[39m Success      [90m│[39m
+[90m└─────[39m[90m┴──────────[39m[90m┴────────────────────────────────────────[39m[90m┴────────────[39m[90m┴────────────[39m[90m┴──────────────┘[39m
+========================================================================================================================
+Wrote 260 test cases to analysis/artifacts/promptfoo/20260623T153525Z/D0/redteam.generated.yaml
+
+Run promptfoo redteam eval -c analysis/artifacts/promptfoo/20260623T153525Z/D0/redteam.generated.yaml to run the red team!
+========================================================================================================================
+[33mWarning: Node.js 20 has reached end-of-life and is deprecated in promptfoo.
+
+Detected: v20.20.0
+Recommended: Node.js >=22.22.0 (Node.js 24 LTS preferred)
+
+Upgrade your Node.js runtime to avoid disruption in a future promptfoo release.[0m
+(node:983263) ExperimentalWarning: DecompressInterceptor is experimental and subject to change
+(Use `node --trace-warnings ...` to show where the warning was created)
+/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/registry-DQwc4WxS.js:22
+				const wrapped = /* @__PURE__ */ new Error(`Failed to load redteam provider '${providerPath}': ${message}`);
+				                                ^
+
+
+Error: Failed to load redteam provider 'promptfoo:redteam:hydra': jailbreak:hydra strategy requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+    at Object.create (/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/registry-DQwc4WxS.js:22:37)
+    at async loadApiProvider (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/providers-BuFzgFVK.js:21178:15)
+    ... 5 lines matching cause stack trace ...
+    at async Command.<anonymous> (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:4757:3)
+    at async Command.parseAsync (/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/node_modules/commander/lib/command.js:1122:5)
+    at async main (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:22504:2) {
+  cause: Error: jailbreak:hydra strategy requires remote generation, which has been explicitly disabled. To enable it, unset PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION. Once re-enabled, you can point at a self-hosted endpoint with PROMPTFOO_REMOTE_GENERATION_URL or use Promptfoo Cloud via `promptfoo auth login`.
+      at new HydraProvider (/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/hydra-BPOBYW6J.js:52:38)
+      at Object.create (/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/registry-DQwc4WxS.js:111:11)
+      at async Object.create (/home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/registry-DQwc4WxS.js:19:12)
+      at async loadApiProvider (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/providers-BuFzgFVK.js:21178:15)
+      at async readTest (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:1627:74)
+      at async readTests (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:1699:16)
+      at async resolveConfigs (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:2337:22)
+      at async runEvaluation (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:4263:74)
+      at async doEval (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:4671:9)
+      at async Command.<anonymous> (file:///home/secai2/.nvm/versions/node/v20.20.0/lib/node_modules/promptfoo/dist/src/main.js:4757:3)
+}
+
+Node.js v20.20.0

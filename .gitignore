@@ -35,7 +35,7 @@ creds.txt
 # idle_baseline.jsonl
 # smoketest.out
 # sweep_full.log
-*.log
+# *.log
 
 # PyRIT memory databases
 **/pyrit.db
