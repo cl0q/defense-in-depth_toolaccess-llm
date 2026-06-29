@@ -21,7 +21,8 @@ try:
     from rich.text import Text
     from textual.app import App, ComposeResult
     from textual.binding import Binding
-    from textual.containers import Horizontal, Vertical
+    from textual.containers import Horizontal
+    from textual.theme import Theme
     from textual.widgets import DataTable, Footer, Static
     _OK = True
 except Exception:  # pragma: no cover
@@ -32,6 +33,15 @@ _OPEN = re.compile(r"<think>.*\Z", re.DOTALL | re.I)
 _WS = re.compile(r"\s+")
 DOT = "\u25cf"
 FLAG = "\U0001f6a9"
+
+SOLAR_DARK = dict(primary="#268bd2", secondary="#2aa198", accent="#b58900",
+                  foreground="#93a1a1", background="#002b36", surface="#073642",
+                  panel="#073642", success="#859900", warning="#b58900",
+                  error="#dc322f", dark=True)
+SOLAR_LIGHT = dict(primary="#268bd2", secondary="#2aa198", accent="#b58900",
+                   foreground="#586e75", background="#fdf6e3", surface="#eee8d5",
+                   panel="#eee8d5", success="#859900", warning="#cb4b16",
+                   error="#dc322f", dark=False)
 
 
 def clean(t: str, n: int = 400) -> str:
@@ -53,19 +63,20 @@ if _OK:
     class RDM(App):
         CSS = """
         Screen { layout: vertical; }
-        #status { height: 3; border: round cyan; padding: 0 1; }
+        #status { height: 3; border: round $secondary; padding: 0 1; }
         #mid { height: 1fr; }
-        #matrix { width: 40; border: round blue; }
-        #chat { border: round magenta; padding: 0 1; }
+        #matrix { width: 40; border: round $primary; }
+        #chat { border: round $accent; padding: 0 1; }
         #bottom { height: 11; }
-        #res { width: 1fr; border: round green; padding: 0 1; }
-        #nrg { width: 1fr; border: round yellow; padding: 0 1; }
+        #res { width: 1fr; border: round $success; padding: 0 1; }
+        #nrg { width: 1fr; border: round $warning; padding: 0 1; }
         """
         BINDINGS = [
             Binding("q,escape", "quit", "Quit"),
             Binding("r", "refresh", "Refresh"),
             Binding("space", "toggle", "Pause"),
             Binding("f", "follow", "Follow live"),
+            Binding("t", "next_theme", "Theme"),
             Binding("j,down", "row(1)", "Down"),
             Binding("k,up", "row(-1)", "Up"),
             Binding("g", "top", "Top"),
@@ -76,7 +87,6 @@ if _OK:
             super().__init__()
             self.ctx = discover()
             self.st = State(self.ctx)
-            self.t0 = time.time()
             self.paused = False
             self.follow = True
             self.sel = (0, 0)
@@ -92,6 +102,13 @@ if _OK:
             yield Footer()
 
         def on_mount(self):
+            for name, cfg in (("solarized-dark", SOLAR_DARK),
+                              ("solarized-light", SOLAR_LIGHT)):
+                try:
+                    self.register_theme(Theme(name=name, **cfg))
+                except Exception:
+                    pass
+            self.theme = "solarized-dark"
             self.tbl = self.query_one("#matrix", DataTable)
             self.tbl.cursor_type = "row"
             strats, layers = self.st.matrix()
@@ -133,8 +150,9 @@ if _OK:
             t.append(f"  goal={lv.goal or '—'} [{lv.idx}/{lv.total}]", style="yellow")
             if lv.verdict:
                 t.append(f"  {lv.verdict}", style="bold red" if lv.verdict == "LEAK" else "bold green")
-            el = int(time.time() - self.t0)
-            t.append(f"  ⏱{el//60}m{el%60:02d}s", style="dim")
+            start = self.ctx.start_epoch
+            el = int(time.time() - start) if start else 0
+            t.append(f"  \u23f1 {el//60}m{el%60:02d}s", style="dim")
             if self.paused:
                 t.append("  PAUSED", style="bold yellow")
             return t
@@ -144,21 +162,25 @@ if _OK:
             strat = strats[c] if c < len(strats) else (strats[0] if strats else "")
             layer = layers[r] if r < len(layers) else (layers[0] if layers else "")
             if self.follow:
-                strat, layer = self.st.live.strategy or strat, self.st.live.layer or layer
-            turns = self.st._chat(strat, layer, self.st.live.goal)
-            tbl = Table.grid(expand=True)
+                strat = self.st.live.strategy or strat
+                layer = self.st.live.layer or layer
+                turns = self.st.live.turns
+            else:
+                turns = self.st._chat(strat, layer, self.st.live.goal)
+            tbl = Table.grid(expand=True, padding=(0, 1))
             tbl.add_column(ratio=1)
             for tn in turns[-12:]:
                 if tn.prompt:
                     tbl.add_row(Panel(Text(clean(tn.prompt, 200), justify="right"),
-                                title=f"attacker #{tn.n}", border_style="yellow", width=80,
-                                style="on grey7"), style="on default")
+                                title=f"attacker #{tn.n}", title_align="right",
+                                border_style="yellow", width=72), style="right")
                 if tn.response:
-                    style = "bold red" if tn.flag else "white"
-                    tbl.add_row(Panel(Text(clean(tn.response, 200)), title=f"victim {FLAG if tn.flag else ''}",
-                                border_style="red" if tn.flag else "green"))
+                    style = "bold red" if tn.flag else ""
+                    tbl.add_row(Panel(Text(clean(tn.response, 200), style=style),
+                                title=f"victim {FLAG if tn.flag else ''}".strip(),
+                                border_style="red" if tn.flag else "green", width=72))
             return Panel(tbl, title=f"chat {strat}/{layer} {'(live)' if self.follow else ''}",
-                         border_style="magenta")
+                         border_style="yellow")
 
         def _res(self):
             h, g = host(), gpu()
@@ -186,6 +208,8 @@ if _OK:
         def action_refresh(self): self.refresh_all()
         def action_toggle(self): self.paused = not self.paused
         def action_follow(self): self.follow = not self.follow; self.refresh_all()
+        def action_next_theme(self):
+            self.theme = "solarized-light" if self.theme == "solarized-dark" else "solarized-dark"
         def action_row(self, d): self.tbl.move_cursor(row=max(0, self.tbl.cursor_row + d))
         def action_top(self): self.tbl.move_cursor(row=0)
         def action_bottom(self): self.tbl.move_cursor(row=self.tbl.row_count - 1)

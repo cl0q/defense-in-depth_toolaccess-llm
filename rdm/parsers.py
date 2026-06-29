@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,11 +103,15 @@ class State:
     # -- live tail -----------------------------------------------------------
     def refresh_live(self) -> None:
         text = _tail(SWEEP_LOG, 8000)
-        if not text:
-            return
         layer = strat = ""
         for m in _LAYER_HDR.finditer(text):
             strat, layer = m.group(1), m.group(2)
+        # Fallback: derive the live strategy/layer from the most-recently
+        # written run.log if the top-level sweep log is unavailable or quiet.
+        if (not layer or not strat) and self.ctx.run_dir:
+            nl = self._newest_runlog()
+            if nl:
+                strat, layer = nl.parent.parent.name, nl.parent.name
         live = Live(layer=layer, strategy=strat)
         for m in _RUN.finditer(text):
             live.idx, live.total = int(m.group(1)), int(m.group(2))
@@ -119,15 +122,18 @@ class State:
         live.turns = self._chat(strat, layer, live.goal)
         self.live = live
 
+    def _newest_runlog(self) -> Optional[Path]:
+        rd = self.ctx.run_dir
+        if not rd:
+            return None
+        logs = list(rd.glob("*/*/run.log"))
+        return max(logs, key=_mtime) if logs else None
+
     def _chat(self, strat: str, layer: str, goal: str) -> list[Turn]:
         rd = self.ctx.run_dir
         if not rd or not strat or not layer:
             return []
-        db = rd / strat / layer / "pyrit.db"
-        turns = _chat_from_db(db, goal) if db.exists() else []
-        if not turns:
-            turns = _chat_from_runlog(rd / strat / layer / "run.log")
-        return turns
+        return _chat_from_runlog(rd / strat / layer / "run.log")
 
     def matrix(self):
         m = self.ctx.manifest
@@ -156,39 +162,29 @@ def _tail(p: Optional[Path], n: int) -> str:
         return ""
 
 
-def _chat_from_db(db: Path, goal: str, limit: int = 30) -> list[Turn]:
-    """Full transcript from PyRIT SQLite memory (read-only). Best-effort."""
-    try:
-        uri = f"file:{db}?mode=ro&immutable=1"
-        con = sqlite3.connect(uri, uri=True, timeout=0.5)
-        con.row_factory = sqlite3.Row
-        rows = con.execute(
-            "SELECT role, original_value, sequence FROM PromptMemoryEntries "
-            "ORDER BY sequence DESC LIMIT ?", (limit * 2,)).fetchall()
-        con.close()
-    except Exception:
-        return []
-    pairs: dict[int, Turn] = {}
-    for r in reversed(rows):
-        seq, role, val = r["sequence"], (r["role"] or ""), (r["original_value"] or "")
-        t = pairs.setdefault(seq, Turn(n=seq, prompt="", response=""))
-        if role == "user":
-            t.prompt = val
-        elif role == "assistant":
-            t.response = val
-    return [pairs[k] for k in sorted(pairs)][-limit:]
+_LAYER_TOK = r"D0|DA|DB|DC-a|DC-b|DC-c|D\+\+|DT|\u2014"
+_ROW = re.compile(
+    r"^\s*(\d+)\s{2,}(.+?)\s{2,}(.+?)\s{2,}(" + _LAYER_TOK + r")\b\s*(\U0001f6a9)?\s*$"
+)
 
 
 def _chat_from_runlog(p: Path) -> list[Turn]:
-    """Fallback: scrape the last conversation table (truncated cols)."""
-    text = _tail(p, 12000)
-    block = text.rsplit("\u256d", 1)  # last panel start ╭
-    rows = (block[-1] if len(block) > 1 else text).splitlines()
+    """Parse the last conversation panel into clean attacker/victim turns.
+
+    Conversation rows are space-separated columns rendered inside a panel:
+        ``│  3  <attacker prompt>   <victim response>   D0   ⚑ │``
+    We scan from the last panel start (╭), strip the outer ``│`` border, and
+    keep numbered rows; header/separator rows simply don't match the pattern.
+    """
+    text = _tail(p, 16000)
+    panels = [b for b in text.split("\u256d") if "Attacker" in b]  # ╭
+    rows = (panels[-1] if panels else "").splitlines()
     turns: list[Turn] = []
     for ln in rows:
-        cells = [c.strip() for c in ln.split("\u2502")]  # │
-        if len(cells) < 4 or not cells[1].isdigit():
+        core = ln.strip().strip("\u2502").strip()  # drop outer │ border
+        m = _ROW.match(core)
+        if not m:
             continue
-        turns.append(Turn(n=int(cells[1]), prompt=cells[2], response=cells[3],
-                          flag="\U0001f6a9" in ln))
+        turns.append(Turn(n=int(m.group(1)), prompt=m.group(2).strip(),
+                          response=m.group(3).strip(), flag=bool(m.group(5))))
     return turns[-30:]

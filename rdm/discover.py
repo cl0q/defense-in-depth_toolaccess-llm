@@ -73,6 +73,18 @@ class RunContext:
     def run_id(self) -> str:
         return self.manifest.run_id or (self.run_dir.name if self.run_dir else "—")
 
+    @property
+    def start_epoch(self) -> Optional[float]:
+        """Sweep start time parsed from the run-id (YYYYMMDDThhmmssZ)."""
+        rid = self.run_id
+        try:
+            t = time.strptime(rid, "%Y%m%dT%H%M%SZ")
+            return time.mktime(t) - time.timezone
+        except Exception:
+            if self.run_dir:
+                return self.run_dir.stat().st_mtime
+            return None
+
 
 def latest_run_dir() -> Optional[Path]:
     """Newest run-id directory by mtime, or None."""
