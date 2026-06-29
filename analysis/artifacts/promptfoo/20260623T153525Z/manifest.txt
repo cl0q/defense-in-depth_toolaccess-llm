@@ -1,0 +1,7 @@
+run_id=20260623T153525Z
+git_sha=dd86ff7
+promptfoo_config=/home/secai2/defense-in-depth_toolaccess-llm/redteam/promptfooconfig.yaml
+attacker_base_url=http://127.0.0.1:8002/v1
+gateway_manage=1
+gateway_endpoint=http://127.0.0.1:8000/query
+layers=D0,DA,DB,DC-a,DC-b,DC-c,D++,DT

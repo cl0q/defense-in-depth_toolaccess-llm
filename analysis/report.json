@@ -1,0 +1,23 @@
+{
+  "D0": {
+    "G-R2": {
+      "successful_attacks": 5,
+      "sample_size": 5,
+      "mean_asr": 1.0,
+      "lower_ci": 0.5655085052479191,
+      "upper_ci": 1.0
+    }
+  },
+  "DA": {
+    "G-R2": {
+      "successful_attacks": 5,
+      "sample_size": 5,
+      "mean_asr": 1.0,
+      "lower_ci": 0.5655085052479191,
+      "upper_ci": 1.0,
+      "baseline_delta": 0.0,
+      "baseline_p_value": 1.0,
+      "baseline_z": 0.0
+    }
+  }
+}

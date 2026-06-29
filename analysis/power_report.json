@@ -1,0 +1,22 @@
+{
+  "idle_w": 94.73,
+  "idle_duration_s": 30.007,
+  "layers": {
+    "D0": {
+      "victim": {
+        "count": 200,
+        "mean_mj": 10091392.4,
+        "std_mj": 3891084.7,
+        "mean_net_mj": 7715048.2
+      },
+      "guard": {
+        "count": 0,
+        "mean_mj": 0.0,
+        "std_mj": 0.0,
+        "mean_net_mj": 0.0
+      },
+      "total_net_mj": 7715048.2
+    }
+  },
+  "raw_count": 200
+}
