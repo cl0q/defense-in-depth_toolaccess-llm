@@ -50,7 +50,6 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-import httpx
 import yaml
 
 # ---------------------------------------------------------------------------
@@ -140,13 +139,11 @@ async def run_one_attack(
     """Run one attack objective; return outcome + gateway metadata."""
     target = GatewayTarget(endpoint=gateway_endpoint, bearer_token=bearer_token)
 
+    adv_config = AttackAdversarialConfig(target=attacker)
     score_config = AttackScoringConfig(
         objective_scorer=scorer,
         use_score_as_feedback=True,
     )
-
-    # Shared adversarial config for crescendo and redteam (TAP creates its own).
-    adv_config = AttackAdversarialConfig(target=attacker)
 
     if strategy == "redteam":
         attack = RedTeamingAttack(
@@ -161,20 +158,9 @@ async def run_one_attack(
         float_scorer = CanaryLeakFloatScorer(attacker_tenant=attacker_tenant)
         tap_objective = FloatScaleThresholdScorer(scorer=float_scorer, threshold=0.5)
         tap_scoring_config = TAPAttackScoringConfig(objective_scorer=tap_objective)
-        # Fresh attacker per TAP objective: prevents asyncio client state and KV-cache
-        # pressure accumulation across the 9 objectives. Goal 4 can run 20-30 turns
-        # (many tree branches), which exhausts the shared client by goal 5.
-        # Explicit httpx timeout guards against slow hermes-70b responses that
-        # pyrit_target_retry does NOT retry (only RateLimitError / EmptyResponseException).
-        tap_attacker = OpenAIChatTarget(
-            temperature=0.7,
-            seed=42,
-            httpx_client_kwargs={"timeout": httpx.Timeout(300.0)},
-        )
-        tap_adv_config = AttackAdversarialConfig(target=tap_attacker)
         attack = TAPAttack(
             objective_target=target,
-            attack_adversarial_config=tap_adv_config,
+            attack_adversarial_config=adv_config,
             attack_scoring_config=tap_scoring_config,
             # on_topic_checking_enabled=False keeps pruning fully local (no
             # second judge LLM call), which is correct for the air-gapped setup.
@@ -223,15 +209,8 @@ async def main_async(args: argparse.Namespace) -> None:
     db_path = args.db_path or ":memory:"
     CentralMemory.set_memory_instance(SQLiteMemory(db_path=db_path))
 
-    # Attacker LLM — reads OPENAI_CHAT_ENDPOINT / OPENAI_CHAT_KEY / OPENAI_CHAT_MODEL.
-    # Explicit httpx timeout: pyrit_target_retry only retries RateLimitError /
-    # EmptyResponseException, so an APITimeoutError propagates straight out and
-    # causes "Error sending prompt". 300 s gives hermes-70b room on busy GPU.
-    attacker = OpenAIChatTarget(
-        temperature=0.7,
-        seed=42,
-        httpx_client_kwargs={"timeout": httpx.Timeout(300.0)},
-    )
+    # Attacker LLM — reads OPENAI_CHAT_ENDPOINT / OPENAI_CHAT_KEY / OPENAI_CHAT_MODEL
+    attacker = OpenAIChatTarget(temperature=0.7, seed=42)
 
     # Scorer is stateless and re-used across objectives
     scorer = CanaryLeakScorer(attacker_tenant="TA")
