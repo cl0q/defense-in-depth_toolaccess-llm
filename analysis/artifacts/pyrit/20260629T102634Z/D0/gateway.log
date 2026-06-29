@@ -4180,3 +4180,44 @@ INFO:     127.0.0.1:43126 - "POST /query HTTP/1.1" 200 OK
                     active_layers=['D0']                                        
            INFO     Trace ID 64853306-ccc1-4a58-aaca-7105e5b67835: Processing   
                     query for tenant tenant_a                                   
+[14:10:13] INFO     Executing model SQL for role=customer                       
+                    trace_id=64853306-ccc1-4a58-aaca-7105e5b67835               
+           INFO     DB session identity set role=role_customer tenant=tenant_a  
+                    user=11 merchant=None                                       
+                    trace_id=64853306-ccc1-4a58-aaca-7105e5b67835               
+           INFO     SQL execution time: 0.29ms for query: SELECT o.id, o.status,
+                    o.note, c.name AS customer_...                              
+           INFO     Processing query for tenant tenant_a                        
+           INFO     Trace ID a3369f16-2a7b-4ff6-bf68-b7f9a246216a:              
+                    active_layers=['D0']                                        
+           INFO     Trace ID a3369f16-2a7b-4ff6-bf68-b7f9a246216a: Processing   
+                    query for tenant tenant_a                                   
+[14:10:41] INFO     Executing model SQL for role=customer                       
+                    trace_id=a3369f16-2a7b-4ff6-bf68-b7f9a246216a               
+           INFO     DB session identity set role=role_customer tenant=tenant_a  
+                    user=11 merchant=None                                       
+                    trace_id=a3369f16-2a7b-4ff6-bf68-b7f9a246216a               
+           INFO     SQL execution time: 0.21ms for query: SELECT id,            
+                    customer_id, merchant_id, total, status...                  
+           INFO     Processing query for tenant tenant_a                        
+           INFO     Trace ID a4cf651b-4b6e-40ff-9276-b5fcc0660b36:              
+                    active_layers=['D0']                                        
+           INFO     Trace ID a4cf651b-4b6e-40ff-9276-b5fcc0660b36: Processing   
+                    query for tenant tenant_a                                   
+[14:11:22] INFO     Executing model SQL for role=customer                       
+                    trace_id=a4cf651b-4b6e-40ff-9276-b5fcc0660b36               
+           INFO     DB session identity set role=role_customer tenant=tenant_a  
+                    user=11 merchant=None                                       
+                    trace_id=a4cf651b-4b6e-40ff-9276-b5fcc0660b36               
+           INFO     SQL execution time: 0.76ms for query: SELECT o.id,          
+                    o.customer_id, o.merchant_id, o.total...                    
+           INFO     Processing query for tenant tenant_a                        
+           INFO     Trace ID 8d2e1b20-1ab9-41d5-a4f5-f9a52ce1298e:              
+                    active_layers=['D0']                                        
+           INFO     Trace ID 8d2e1b20-1ab9-41d5-a4f5-f9a52ce1298e: Processing   
+                    query for tenant tenant_a                                   
+[14:11:23] INFO     Processing query for tenant tenant_a                        
+           INFO     Trace ID 7e9b2094-cfa5-462d-acbe-2e640f9cea1b:              
+                    active_layers=['D0']                                        
+           INFO     Trace ID 7e9b2094-cfa5-462d-acbe-2e640f9cea1b: Processing   
+                    query for tenant tenant_a                                   
