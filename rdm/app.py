@@ -173,7 +173,7 @@ if _OK:
                 if tn.prompt:
                     tbl.add_row(Panel(Text(clean(tn.prompt, 200), justify="right"),
                                 title=f"attacker #{tn.n}", title_align="right",
-                                border_style="yellow", width=72), style="right")
+                                border_style="yellow", width=72))
                 if tn.response:
                     style = "bold red" if tn.flag else ""
                     tbl.add_row(Panel(Text(clean(tn.response, 200), style=style),
