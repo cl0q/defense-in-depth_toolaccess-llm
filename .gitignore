@@ -41,6 +41,9 @@ creds.txt
 **/pyrit.db
 *.duckdb
 
+# Transient sweep PID file (written by run_full_suite.sh)
+.sweep.pid
+
 # ---------------------------------------------------------------------------
 # OS / editor cruft
 # ---------------------------------------------------------------------------

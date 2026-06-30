@@ -38,6 +38,12 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$script_dir"
 
+# Shared colourful / structured logging (log_info/log_ok/log_banner/…).
+# shellcheck source=lib/log.sh
+source "$repo_root/lib/log.sh"
+SWEEP_PID=$$
+sweep_start="$(date +%s)"
+
 # --- Paths and identifiers ---------------------------------------------------
 pyrit_python="${PYRIT_PYTHON:-$repo_root/redteam/pyrit_venv/bin/python}"
 artifact_root="${PYRIT_ARTIFACT_ROOT:-$repo_root/analysis/artifacts/pyrit}"
@@ -124,7 +130,7 @@ preflight_check() {
     # attacker=8002, guard=8003), so a listener here is almost always an
     # orphaned gateway from a previous/interrupted run. Auto-recover since we
     # manage the gateway ourselves (GATEWAY_MANAGE=1).
-    echo "[preflight] port ${gateway_port} already in use by pid ${pid} (${cmd}); reclaiming it..."
+    log_warn "preflight: port ${gateway_port} already in use by pid ${C_BOLD}${pid}${C_RESET} (${cmd}); reclaiming it…"
     local all
     all=$( { ss -tlnp "sport = :${gateway_port}" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u; } \
            || { lsof -ti "tcp:${gateway_port}" 2>/dev/null | sort -u; } || true )
@@ -136,12 +142,24 @@ preflight_check() {
     pid=$( { ss -tlnp "sport = :${gateway_port}" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1; } \
            || { lsof -ti "tcp:${gateway_port}" 2>/dev/null | head -1; } || true )
     if [ -n "$pid" ]; then
-      echo "[preflight] could not free port ${gateway_port} (pid ${pid} still listening). Aborting." >&2
+      log_error "preflight: could not free port ${gateway_port} (pid ${pid} still listening). Aborting."
       exit 1
     fi
-    echo "[preflight] port ${gateway_port} is now free."
+    log_ok "preflight: port ${gateway_port} is now free."
   fi
 }
+# Launch banner — surface run metadata + the sweep PID up front.
+log_banner "PyRIT red-team sweep · run ${run_id}"
+log_kv "sweep pid"  "${SWEEP_PID}"
+log_kv "git sha"    "${git_sha}"
+log_kv "strategies" "${strategies_csv}"
+log_kv "layers"     "${layers_override:-D0,DA,DB,DC-a,DC-b,DC-c,D++,DT}"
+log_kv "max turns"  "${max_turns}  ${C_DIM}(backtracks ${max_backtracks}, trials ${trials})${C_RESET}"
+log_kv "attacker"   "${OPENAI_CHAT_MODEL} ${C_DIM}@ ${OPENAI_CHAT_ENDPOINT}${C_RESET}"
+log_kv "gateway"    "${PYRIT_GATEWAY_ENDPOINT} ${C_DIM}(manage=${gateway_manage})${C_RESET}"
+log_kv "artifacts"  "${run_dir}"
+echo
+
 preflight_check
 
 # Return the PID(s) currently listening on the gateway port (one per line).
@@ -161,7 +179,7 @@ free_gateway_port() {
   local pids
   pids="$(listeners_on_port)"
   [ -z "$pids" ] && return 0
-  echo "[gateway] freeing port ${gateway_port} (stale pids: $(echo $pids | tr '\n' ' '))"
+  log_warn "gateway: freeing port ${gateway_port} (stale pids: $(echo $pids | tr '\n' ' '))"
   for p in $pids; do kill "$p" 2>/dev/null || true; done
   sleep 1
   pids="$(listeners_on_port)"
@@ -200,7 +218,7 @@ verify_active_layer() {
   local reported
   reported="$(curl -fsS "http://${gateway_host}:${gateway_port}/layers" 2>/dev/null \
                 | grep -oP '"active_layers"\s*:\s*\[\K[^]]*' | tr -d ' "' )"
-  echo "[gateway] reports active_layers=[${reported}] (intended profile=${expected})"
+  log_info "gateway reports active_layers=[${C_BOLD}${reported}${C_RESET}] (intended profile=${expected})"
 
   # DC-a and DC-b defenses live entirely in Postgres; the gateway carries no
   # extra flags for them and correctly reports D0.  Nothing to verify here.
@@ -210,14 +228,14 @@ verify_active_layer() {
 
   if [ "$expected" = "D0" ]; then
     if [ "$reported" != "D0" ]; then
-      echo "FATAL: D0 profile but gateway reports [${reported}]." >&2
+      log_error "FATAL: D0 profile but gateway reports [${reported}]."
       return 1
     fi
   else
     # Any non-baseline profile must NOT report a bare D0 (the orphan signature),
     # and must not be empty.
     if [ -z "$reported" ] || [ "$reported" = "D0" ]; then
-      echo "FATAL: profile=${expected} but gateway reports [${reported}] — stale/orphaned gateway?" >&2
+      log_error "FATAL: profile=${expected} but gateway reports [${reported}] — stale/orphaned gateway?"
       return 1
     fi
   fi
@@ -239,11 +257,11 @@ start_gateway() {
   until curl -fsS -o /dev/null "$gateway_health_url" 2>/dev/null; do
     tries=$((tries + 1))
     if ! kill -0 "$gateway_pid" 2>/dev/null; then
-      echo "Gateway process exited during startup; see $log_file" >&2
+      log_error "Gateway process exited during startup; see $log_file"
       return 1
     fi
     if [ "$tries" -ge 60 ]; then
-      echo "Gateway did not become healthy within 60s; see $log_file" >&2
+      log_error "Gateway did not become healthy within 60s; see $log_file"
       return 1
     fi
     sleep 1
@@ -256,12 +274,12 @@ start_gateway() {
     local parent
     parent="$(ps -o ppid= -p "$owner" 2>/dev/null | tr -d ' ' || true)"
     if [ "$parent" != "$gateway_pid" ]; then
-      echo "FATAL: port ${gateway_port} served by pid ${owner}, not our gateway ${gateway_pid} (orphan?)." >&2
+      log_error "FATAL: port ${gateway_port} served by pid ${owner}, not our gateway ${gateway_pid} (orphan?)."
       return 1
     fi
   fi
 
-  echo "[gateway] up (pid=$gateway_pid) for ${expected_layer}"
+  log_ok "gateway up ${C_DIM}(pid ${gateway_pid})${C_RESET} for profile ${C_BOLD}${expected_layer}${C_RESET}"
   verify_active_layer "$expected_layer"
 }
 
@@ -276,7 +294,13 @@ fi
 
 IFS=',' read -r -a strategies <<< "$strategies_csv" || true
 
+n_layers=${#layers[@]}
+n_strats=${#strategies[@]}
+layer_i=0
+
 for layer in "${layers[@]}"; do
+  layer_i=$((layer_i + 1))
+  layer_start="$(date +%s)"
   # gateway.log and power_log are per-layer (shared across strategies for
   # the same layer run, since the gateway is only restarted once per layer).
   layer_base_dir="$run_dir/$layer"
@@ -285,18 +309,23 @@ for layer in "${layers[@]}"; do
   gateway_log="$layer_base_dir/gateway.log"
   power_log="$layer_base_dir/power_log.jsonl"
 
-  echo "=== Layer ${layer}: applying defense profile ===" | tee "$layer_base_dir/apply.log"
+  log_banner "Layer ${layer}  [${layer_i}/${n_layers}]   ·   sweep pid ${SWEEP_PID}"
+  echo "=== Layer ${layer}: applying defense profile ===" > "$layer_base_dir/apply.log"
+  log_step "applying defense profile for ${C_BOLD}${layer}${C_RESET}"
   "$repo_root/set_layer.sh" "$layer" 2>&1 | tee -a "$layer_base_dir/apply.log"
 
   if [ "$gateway_manage" = "1" ]; then
     stop_gateway
     start_gateway "$gateway_log" "$power_log" "$layer"
   else
-    echo "GATEWAY_MANAGE=0: restart the gateway so ${layer} flags load, then press Enter."
+    log_warn "GATEWAY_MANAGE=0: restart the gateway so ${layer} flags load, then press Enter."
     read -r _
   fi
 
+  strat_i=0
   for strategy in "${strategies[@]}"; do
+    strat_i=$((strat_i + 1))
+    cell_start="$(date +%s)"
     strat_layer_dir="$run_dir/$strategy/$layer"
     mkdir -p "$strat_layer_dir"
 
@@ -304,7 +333,9 @@ for layer in "${layers[@]}"; do
     log_file="$strat_layer_dir/run.log"
     db_file="$strat_layer_dir/pyrit.db"
 
-    echo "Running PyRIT ${strategy} for layer ${layer}" | tee "$log_file"
+    log_rule "${layer} [${layer_i}/${n_layers}]  ·  ${strategy} [${strat_i}/${n_strats}]  ·  sweep ${SWEEP_PID} · gw ${gateway_pid:-—}"
+    echo "Running PyRIT ${strategy} for layer ${layer}" > "$log_file"
+    log_step "running ${C_BOLD}${strategy}${C_RESET} on ${C_BOLD}${layer}${C_RESET} ${C_DIM}(sweep pid ${SWEEP_PID}, gateway pid ${gateway_pid:-—})${C_RESET}"
 
     goals_arg=""
     if [ -n "$goals" ]; then
@@ -322,7 +353,11 @@ for layer in "${layers[@]}"; do
       --db-path "$db_file" \
       ${goals_arg} \
       2>&1 | tee -a "$log_file"
+
+    log_since "${layer} · ${strategy} [${strat_i}/${n_strats}] complete ${C_DIM}→ ${results_file}${C_RESET}" "$cell_start"
   done
+
+  log_since "Layer ${layer} [${layer_i}/${n_layers}] finished" "$layer_start"
 done
 
 stop_gateway
@@ -352,35 +387,31 @@ echo "Report written to: $run_dir/report.md"
 EOF
 chmod +x "$analyze_script"
 
+sweep_elapsed="$(fmt_elapsed $(( $(date +%s) - sweep_start )))"
 echo ""
-echo "╔══════════════════════════════════════════════════════════════════════╗"
-echo "║                        SWEEP COMPLETE                                  ║"
-echo "╚══════════════════════════════════════════════════════════════════════╝"
+log_banner "SWEEP COMPLETE · run ${run_id}"
+log_kv "sweep pid"  "${SWEEP_PID}"
+log_kv "wall time"  "${sweep_elapsed}"
+log_kv "layers"     "${layers[*]}"
+log_kv "strategies" "${strategies[*]}"
+log_kv "artifacts"  "${run_dir}"
 echo ""
-echo "  RUN ID:     $run_id"
-echo "  Artifacts:  $run_dir"
-echo "  Layers:     ${layers[*]}"
-echo "  Strategies: ${strategies[*]}"
+log_rule "analyze everything"
+log_step "one-liner:   ${C_BGREEN}bash ${analyze_script}${C_RESET}"
 echo ""
-echo "  ────────────────────────────────────────────────────────────────────"
-echo "  ANALYZE EVERYTHING — just run:"
-echo ""
-echo "      bash $analyze_script"
-echo ""
-echo "  ...or copy-paste this full command:"
-echo ""
-echo "      python analysis/stats.py \\"
-echo "        --artifacts '$run_dir/**/pyrit.results.json' \\"
-echo "        --power-log '$run_dir/**/power_log.jsonl' \\"
-echo "        --idle-baseline '$idle_baseline' \\"
-echo "        --out '$run_dir/report.md' \\"
-echo "        --json-out '$run_dir/report.json' \\"
-echo "        --power-out '$run_dir/power_report.json'"
-echo "  ────────────────────────────────────────────────────────────────────"
+log_info "…or copy-paste the full command:"
+printf '%s\n' "${C_GREEN}      python analysis/stats.py \\
+        --artifacts '$run_dir/**/pyrit.results.json' \\
+        --power-log '$run_dir/**/power_log.jsonl' \\
+        --idle-baseline '$idle_baseline' \\
+        --out '$run_dir/report.md' \\
+        --json-out '$run_dir/report.json' \\
+        --power-out '$run_dir/power_report.json'${C_RESET}"
+log_rule
 echo ""
 
 if [ "${PYRIT_NO_ANALYZE:-0}" != "1" ]; then
-  echo "  Running analysis automatically (set PYRIT_NO_ANALYZE=1 to skip)..."
+  log_step "running analysis automatically ${C_DIM}(set PYRIT_NO_ANALYZE=1 to skip)${C_RESET}"
   echo ""
-  bash "$analyze_script" && echo "  ✓ Report ready: $run_dir/report.md"
+  bash "$analyze_script" && log_ok "report ready: ${C_BOLD}$run_dir/report.md${C_RESET}"
 fi

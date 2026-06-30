@@ -37,6 +37,10 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$script_dir"
 
+# Shared colourful / structured logging (no-op-safe if colour is disabled).
+# shellcheck source=lib/log.sh
+source "$repo_root/lib/log.sh"
+
 profile="${1:-}"
 if [ -z "$profile" ]; then
   echo "Usage: $0 <D0|DA|DB|DC-a|DC-b|DC-c|DT|D++>" >&2
@@ -70,7 +74,7 @@ active_list="$(
 )"
 active_csv="$(echo "$active_list" | paste -sd, - 2>/dev/null || echo "$active_list" | tr '\n' ',' | sed 's/,$//')"
 
-echo "=== set_layer: profile=$profile  active=[$active_csv] ==="
+log_step "set_layer: profile=${C_BOLD}$profile${C_RESET} active=[${C_CYAN}$active_csv${C_RESET}]"
 
 # --- gateway side: rewrite LAYER_* lines in .env -----------------------------
 env_file="${GATEWAY_ENV_FILE:-$repo_root/.env}"
@@ -93,18 +97,18 @@ write_env() {
     echo "LAYER_DT=$(bool $DT)"
   } >> "$tmp"
   mv "$tmp" "$env_file"
-  echo "[gateway] wrote layer flags to $env_file"
+  log_ok "set_layer: wrote gateway layer flags → $env_file"
 }
 
 if [ "${SET_LAYER_DRY_RUN:-0}" = "1" ]; then
-  echo "[dry-run] would write gateway flags DA=$(bool $DA) DB=$(bool $DB) DC_A=$(bool $DCA) DC_B=$(bool $DCB) DC_C=$(bool $DCC) DT=$(bool $DT) -> $env_file"
+  log_info "[dry-run] would write gateway flags DA=$(bool $DA) DB=$(bool $DB) DC_A=$(bool $DCA) DC_B=$(bool $DCB) DC_C=$(bool $DCC) DT=$(bool $DT) → $env_file"
 else
   write_env
 fi
 
 # --- database side: apply up/down SQL for DC-a/b/c ---------------------------
 if [ "${SET_LAYER_NO_DB:-0}" = "1" ]; then
-  echo "[db] SET_LAYER_NO_DB=1 -> skipping database posture changes"
+  log_info "[db] SET_LAYER_NO_DB=1 → skipping database posture changes"
 else
   # Load credentials the same way bootstrap_db.sh does.
   if [ -f "$repo_root/creds.txt" ]; then
@@ -125,12 +129,12 @@ else
   apply_sql() {
     local rel="$1"
     if [ "${SET_LAYER_DRY_RUN:-0}" = "1" ]; then
-      echo "[dry-run] [db] would apply db/$rel"
+      log_info "[dry-run] [db] would apply db/$rel"
       return 0
     fi
     psql -h "$db_host" -p "$db_port" -U "$db_superuser" -d "$db_name" \
          -v ON_ERROR_STOP=1 -f "$repo_root/db/$rel" >/dev/null
-    echo "[db] applied db/$rel"
+    log_ok "[db] applied db/$rel"
   }
 
   # DC-a (grants): up- and down-scripts are both idempotent GRANT/REVOKE sets.
@@ -146,4 +150,4 @@ else
   if [ $DCC -eq 1 ]; then apply_sql "04_masking.sql"; fi
 fi
 
-echo "=== set_layer: profile=$profile applied (restart gateway to load flag changes) ==="
+log_ok "set_layer: profile=${C_BOLD}$profile${C_RESET} applied ${C_DIM}(restart gateway to load flag changes)${C_RESET}"

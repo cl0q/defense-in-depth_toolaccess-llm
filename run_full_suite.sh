@@ -37,9 +37,47 @@ export PYRIT_LOG_LEVEL="${PYRIT_LOG_LEVEL:-INFO}"
 # timeout so slow-but-legitimate victim turns complete instead of being lost.
 export PYRIT_GATEWAY_TIMEOUT="${PYRIT_GATEWAY_TIMEOUT:-300}"
 
-echo "=== sweep starting: run_id=$PYRIT_RUN_ID ==="
-echo "=== logs: analysis/artifacts/pyrit/$PYRIT_RUN_ID ==="
+# --- Output / colour QoL -----------------------------------------------------
+# Force rich (Python) colour + a wide console THROUGH the tee pipe, so the
+# conversation tables in sweep_full.log render in colour and fit far more
+# content when `tail -f`'d. PYRIT_MSG_MAXLEN controls how much of each
+# attacker/victim message is shown per turn (wrapped, not ellipsised).
+export PYRIT_FORCE_COLOR="${PYRIT_FORCE_COLOR:-1}"
+export PYRIT_CONSOLE_WIDTH="${PYRIT_CONSOLE_WIDTH:-140}"
+export PYRIT_MSG_MAXLEN="${PYRIT_MSG_MAXLEN:-600}"
+# Force colour for the bash scaffolding (lib/log.sh) inside the backgrounded,
+# piped layers script too. Set SWEEP_COLOR=0 (and PYRIT_FORCE_COLOR=0) if you
+# prefer plain logs — e.g. to colourise them yourself with grc (see below).
+export SWEEP_COLOR="${SWEEP_COLOR:-1}"
+
+# Shared colourful / structured logging for this launcher.
+# shellcheck source=lib/log.sh
+source "$PWD/lib/log.sh"
+
+log_step "starting sweep ${C_BOLD}${PYRIT_RUN_ID}${C_RESET}"
 
 nohup bash run_pyrit_layers.sh > sweep_full.log 2>&1 &
-echo "[sweep] pid=$! — tailing sweep_full.log (Ctrl-C is safe, sweep keeps running)"
-tail -f sweep_full.log
+SWEEP_PID=$!
+echo "$SWEEP_PID" > "$PWD/.sweep.pid"
+
+log_banner "Sweep launched · run ${PYRIT_RUN_ID}"
+log_kv "sweep pid"  "${SWEEP_PID}"
+log_kv "console"    "tail -f sweep_full.log"
+log_kv "artifacts"  "analysis/artifacts/pyrit/${PYRIT_RUN_ID}"
+log_kv "pid file"   "$PWD/.sweep.pid"
+log_kv "stop with"  "kill ${SWEEP_PID}   ${C_DIM}(or: kill \$(cat .sweep.pid))${C_RESET}"
+echo ""
+log_info "tailing sweep_full.log — ${C_DIM}Ctrl-C is safe, the sweep keeps running in the background (pid ${SWEEP_PID})${C_RESET}"
+log_rule
+echo ""
+
+# Live console. The stream already carries ANSI colour (rich + lib/log.sh), so
+# the default tail is fully colourful with no extra tooling. Opt-in grc routing
+# (SWEEP_TAIL_GRC=1) is provided for users who run with colour OFF and prefer
+# grc's own scheme: `SWEEP_COLOR=0 PYRIT_FORCE_COLOR=0 SWEEP_TAIL_GRC=1 bash run_full_suite.sh`.
+if [ "${SWEEP_TAIL_GRC:-0}" = "1" ] && command -v grcat >/dev/null 2>&1; then
+  log_info "colourising tail via grc ${C_DIM}(SWEEP_TAIL_GRC=1 → lib/sweep.grcat)${C_RESET}"
+  tail -n +1 -f sweep_full.log | grcat "$PWD/lib/sweep.grcat"
+else
+  tail -n +1 -f sweep_full.log
+fi

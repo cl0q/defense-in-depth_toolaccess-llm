@@ -13,6 +13,7 @@ back to plain ``print`` if ``rich`` cannot be imported.
 
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import sys
@@ -70,6 +71,23 @@ def condense(text: str, max_len: int = 200) -> str:
     return text
 
 
+def msg_maxlen(default: int = 600) -> int:
+    """Per-turn message budget (chars) for the conversation table.
+
+    Controlled by ``PYRIT_MSG_MAXLEN`` so a sweep can show more (or less) of
+    each attacker/victim message without code changes.  Messages are wrapped
+    (not ellipsised) up to this budget, so a larger value simply shows more of
+    the actual SQL / JSON / refusal per turn.
+    """
+    raw = os.getenv("PYRIT_MSG_MAXLEN", "").strip()
+    if raw:
+        try:
+            return max(80, int(raw))
+        except ValueError:
+            pass
+    return default
+
+
 def turn_leaked(response: str, attacker_tenant: str = "TA") -> bool:
     """Deterministically flag whether a victim response leaked a sensitive
     canary token (INTERNAL/SECRET sensitivity or a cross-tenant token)."""
@@ -122,11 +140,25 @@ def make_console() -> Optional["Console"]:
     """Return a rich Console, or None if rich is unavailable.
 
     Set ``PYRIT_FORCE_COLOR=1`` to force ANSI colours even when stdout is a pipe
-    (e.g. when the matrix runner tees output to a log file)."""
+    (e.g. when the matrix runner tees output to a log file).  When forcing colour
+    through a pipe, rich cannot auto-detect the terminal width, so honour
+    ``PYRIT_CONSOLE_WIDTH`` (default 140) to keep the tables wide and fit more
+    content; a real interactive TTY keeps rich's auto-detected width."""
     if not _RICH_AVAILABLE:
         return None
     force = os.getenv("PYRIT_FORCE_COLOR", "") not in ("", "0")
-    return Console(force_terminal=True if force else None, highlight=False)
+
+    width: Optional[int] = None
+    width_env = os.getenv("PYRIT_CONSOLE_WIDTH", "").strip()
+    if width_env:
+        try:
+            width = int(width_env)
+        except ValueError:
+            width = None
+    if width is None and force:
+        width = 140  # piped output has no detectable size; default wide
+
+    return Console(force_terminal=True if force else None, width=width, highlight=False)
 
 
 # ---------------------------------------------------------------------------
@@ -143,11 +175,15 @@ def print_header(
     attacker_model: str,
     gateway_endpoint: str,
     trials: int = 1,
+    run_id: str = "",
 ) -> None:
+    pid = os.getpid()
+    started = datetime.datetime.now().strftime("%H:%M:%S")
     if console is None:
         print(
             f"[run_pyrit] strategy={strategy} layer={layer} "
-            f"objectives={n_objectives} trials={trials} max_turns={max_turns}",
+            f"objectives={n_objectives} trials={trials} max_turns={max_turns} "
+            f"run_id={run_id or '-'} pid={pid} started={started}",
             flush=True,
         )
         return
@@ -162,8 +198,12 @@ def print_header(
         ("attacker", attacker_model),
         ("gateway", gateway_endpoint),
     ]
+    if run_id:
+        rows.append(("run id", run_id))
+    rows.append(("pid", str(pid)))
+    rows.append(("started", started))
     for i, (key, val) in enumerate(rows):
-        body.append(f"{key:<11}", style="bold cyan")
+        body.append(f"{key:<12}", style="bold cyan")
         body.append(val)
         if i < len(rows) - 1:
             body.append("\n")
@@ -198,57 +238,83 @@ def render_conversation(
 ) -> None:
     role_short = role.replace("role_", "")
     verdict = "LEAK" if success else "blocked"
+    maxlen = msg_maxlen()
 
     if console is None:
         print(f"\n=== {goal} ({verdict}) role={role_short} ===")
         if error:
-            print(f"  [error] {condense(error, 160)}")
+            print(f"  [error] {condense(error, 240)}")
         for i, t in enumerate(turns, 1):
-            print(f"  [{i}] A→ {condense(t.get('prompt', ''), 100)}")
+            print(f"  [{i}] A→ {condense(t.get('prompt', ''), maxlen)}")
             layers = ",".join(t.get("active_layers") or []) or "-"
-            print(f"      V← {condense(t.get('response', ''), 100)}  (layers={layers}, http={t.get('status', '?')})")
+            print(f"      V← {condense(t.get('response', ''), maxlen)}  (layers={layers}, http={t.get('status', '?')})")
         print(f"  outcome: {verdict}  turns: {len(turns)}")
         return
 
     border = "red" if success else "green"
 
-    table = Table(box=box.SIMPLE_HEAVY, expand=True, show_edge=False, pad_edge=False)
-    table.add_column("#", justify="right", style="dim", width=2)
-    table.add_column("Attacker → gateway", style="yellow", ratio=5, overflow="ellipsis", no_wrap=True)
-    table.add_column("Victim ← gateway", ratio=5, overflow="ellipsis", no_wrap=True)
-    table.add_column("Layers", justify="center", style="cyan", width=7, overflow="ellipsis", no_wrap=True)
+    # show_lines separates each turn with a rule — essential now that cells wrap
+    # to multiple lines instead of being truncated to a single ellipsised line.
+    table = Table(box=box.SIMPLE_HEAVY, expand=True, show_edge=False, pad_edge=False, show_lines=True)
+    table.add_column("#", justify="right", style="dim", width=3)
+    table.add_column("Attacker → gateway", style="yellow", ratio=1, overflow="fold")
+    table.add_column("Victim ← gateway", ratio=1, overflow="fold")
+    table.add_column("HTTP", justify="center", width=5)
+    table.add_column("Layers", justify="center", style="cyan", width=12, overflow="fold")
     table.add_column("⚑", justify="center", width=2)
 
+    n_leak = 0
+    n_err = 0
     for i, t in enumerate(turns, 1):
         response = t.get("response", "")
         status = int(t.get("status", 200) or 200)
         leaked = turn_leaked(response)
         if leaked:
             resp_style = "bold red"
+            n_leak += 1
+        elif status >= 500:
+            resp_style = "magenta"
+            n_err += 1
         elif status >= 400:
             resp_style = "green"
         else:
             resp_style = "white"
+
+        if status >= 500:
+            http_style = "bold magenta"
+        elif status >= 400:
+            http_style = "green"
+        elif status >= 300:
+            http_style = "cyan"
+        else:
+            http_style = "dim"
+
         layers = ",".join(t.get("active_layers") or []) or "—"
         table.add_row(
             str(i),
-            Text(condense(t.get("prompt", ""), 240)),
-            Text(condense(response, 240), style=resp_style),
+            Text(condense(t.get("prompt", ""), maxlen)),
+            Text(condense(response, maxlen), style=resp_style),
+            Text(str(status), style=http_style),
             layers,
             "🚩" if leaked else "",
         )
 
     if not turns:
-        table.add_row("—", Text("(no gateway calls)", style="dim"), "", "—", "")
+        table.add_row("—", Text("(no gateway calls — attacker produced no turn)", style="dim"), "", "—", "—", "")
 
-    title = f"[bold]{_rich_escape(goal)}[/bold] [dim]{_rich_escape(condense(description, 56))}[/dim]"
-    subtitle = (
-        f"[bold {'red' if success else 'green'}]{verdict.upper()}[/] · "
-        f"{len(turns)} turns · role={role_short}"
-    )
-    console.print(Panel(table, title=title, subtitle=subtitle, border_style=border, box=box.ROUNDED))
+    title = f"[bold]{_rich_escape(goal)}[/bold] [dim]{_rich_escape(condense(description, 72))}[/dim]"
+    parts = [
+        f"[bold {'red' if success else 'green'}]{verdict.upper()}[/]",
+        f"{len(turns)} turns · role={role_short}",
+    ]
+    if n_leak:
+        parts.append(f"[bold red]{n_leak} leaking[/bold red]")
+    if n_err:
+        parts.append(f"[magenta]{n_err}×5xx[/magenta]")
+    subtitle = " · ".join(parts)
+    console.print(Panel(table, title=title, subtitle=subtitle, border_style=border, box=box.ROUNDED, padding=(0, 1)))
     if error:
-        console.print(f"  [dim red]error:[/dim red] {condense(error, 160)}")
+        console.print(f"  [dim red]error:[/dim red] {condense(error, 240)}")
 
 
 def render_summary(console: Optional["Console"], results: list[dict[str, Any]]) -> None:
@@ -262,11 +328,13 @@ def render_summary(console: Optional["Console"], results: list[dict[str, Any]]) 
             print(f"  {r['tags']['goal']:<6} {outcome}")
         return
 
-    table = Table(title="Run summary", box=box.ROUNDED, title_style="bold", expand=False)
+    table = Table(title="Run summary", box=box.ROUNDED, title_style="bold", expand=True, show_lines=False)
     table.add_column("Goal", style="bold")
     table.add_column("Role")
     table.add_column("Turns", justify="right")
-    table.add_column("Layers", style="cyan")
+    table.add_column("Calls", justify="right")
+    table.add_column("Leak turn", justify="right")
+    table.add_column("Layers", style="cyan", overflow="fold")
     table.add_column("Outcome", justify="center")
 
     for r in results:
@@ -274,10 +342,15 @@ def render_summary(console: Optional["Console"], results: list[dict[str, Any]]) 
         meta = r.get("metadata", {})
         layers = ",".join(meta.get("active_layers") or []) or "—"
         outcome = Text("LEAK", style="bold red") if passed else Text("blocked", style="bold green")
+        gcalls = meta.get("gateway_calls", meta.get("turns", ""))
+        lturn = meta.get("leak_turn")
+        lturn_s = str(lturn) if lturn else "—"
         table.add_row(
             r["tags"]["goal"],
             str(meta.get("role", "")).replace("role_", ""),
             str(meta.get("turns", "")),
+            str(gcalls),
+            lturn_s,
             layers,
             outcome,
         )
@@ -344,11 +417,11 @@ def render_trials_summary(
         title=f"Leak-rate summary · {trials} trials/goal",
         box=box.ROUNDED,
         title_style="bold",
-        expand=False,
+        expand=True,
     )
     table.add_column("Goal", style="bold")
     table.add_column("Role")
-    table.add_column("Layers", style="cyan")
+    table.add_column("Layers", style="cyan", overflow="fold")
     table.add_column("Leaks", justify="right")
     table.add_column("Leak-rate", justify="right")
     table.add_column("Mean turns→leak", justify="right")

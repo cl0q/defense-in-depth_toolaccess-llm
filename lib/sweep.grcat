@@ -1,0 +1,68 @@
+# lib/sweep.grcat — grc/grcat colour rules for the PyRIT sweep logs.
+#
+# Usage (opt-in; the sweep already emits ANSI colour by default):
+#   SWEEP_COLOR=0 PYRIT_FORCE_COLOR=0 SWEEP_TAIL_GRC=1 bash run_full_suite.sh
+# or to colourise a plain log / per-cell run.log after the fact:
+#   grcat lib/sweep.grcat < analysis/artifacts/pyrit/<run>/tap/DT/run.log
+#
+# Rules are evaluated top-to-bottom; `count=more` lets later rules keep adding
+# colour to the same line (e.g. a PID inside a banner line).
+
+# Leaks / fatal errors — the things you must not miss.
+regexp=(?i)\b(LEAK|FATAL|ERROR|orphan|traceback|ReadTimeout|Unexpected error)\b
+colours=bold red
+count=more
+=======
+# Success / healthy / done.
+regexp=(?i)\b(blocked|healthy|complete|finished|applied|up|✓|OK|ready)\b
+colours=bold green
+count=more
+=======
+# Warnings.
+regexp=(?i)\b(WARN|warning|stale|reclaim\w*|skipping|retry)\b|⚠
+colours=bold yellow
+count=more
+=======
+# Section banners / rules / box drawing.
+regexp=^.*[╔╚╝╗║═].*$
+colours=bold blue
+count=more
+=======
+regexp=^── .*
+colours=bold blue
+count=more
+=======
+# PIDs.
+regexp=(?i)\b(pid)\b[ =]*([0-9]+)
+colours=unchanged,magenta,bold magenta
+count=more
+=======
+# Leading timestamps HH:MM:SS.
+regexp=\b\d{2}:\d{2}:\d{2}\b
+colours=dark
+count=more
+=======
+# HTTP status codes.
+regexp=(?i)\bHTTP[ =]?(\d{3})\b
+colours=unchanged,bold cyan
+count=more
+=======
+# Defense-layer tags.
+regexp=\b(D0|DA|DB|DC-[abc]|D\+\+|DT)\b
+colours=cyan
+count=more
+=======
+# Attack-goal tokens.
+regexp=\bG-[RWS]\d\b
+colours=bold cyan
+count=more
+=======
+# Attack strategies.
+regexp=(?i)\b(crescendo|redteam|tap)\b
+colours=magenta
+count=more
+=======
+# Filesystem paths under analysis/artifacts.
+regexp=(/[\w.\-/]*analysis/artifacts[\w.\-/]*)
+colours=dark
+count=more

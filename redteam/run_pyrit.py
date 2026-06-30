@@ -341,6 +341,7 @@ async def main_async(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     console = cli_format.make_console()
+    run_id = args.run_id or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     cli_format.print_header(
         console,
         strategy=args.strategy,
@@ -350,9 +351,9 @@ async def main_async(args: argparse.Namespace) -> None:
         attacker_model=os.getenv("OPENAI_CHAT_MODEL", "?"),
         gateway_endpoint=args.gateway_endpoint,
         trials=max(1, args.trials),
+        run_id=run_id,
     )
 
-    run_id = args.run_id or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     trials = max(1, args.trials)
     results: list[dict[str, Any]] = []
 
