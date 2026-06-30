@@ -44,6 +44,7 @@ except Exception:
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.I)
 _OPEN  = re.compile(r"<think>.*\Z",        re.DOTALL | re.I)
+_THINK_BLOCK = re.compile(r"<think>(.*?)</think>", re.DOTALL | re.I)
 _WS    = re.compile(r"\s+")
 DOT    = "\u25cf"
 FLAG   = "\U0001f6a9"
@@ -79,6 +80,11 @@ def clean(t: str, n: int = 400) -> str:
 def strip_think(t: str) -> str:
     """Remove <think> blocks; preserve whitespace and newlines (no truncation)."""
     return _OPEN.sub("", _THINK.sub("", t or "")).strip()
+
+
+def think_text(t: str) -> str:
+    """Extract the concatenated <think> reasoning blocks, if any."""
+    return "\n".join(m.group(1).strip() for m in _THINK_BLOCK.finditer(t or "")).strip()
 
 
 def pretty_json(s: str) -> str:
@@ -239,8 +245,11 @@ if _OK:
             dt = self.turns_tbl
             dt.clear()
             for tn in turns:
-                a = Text(clean(tn.prompt,   45), style=C_YELLOW)
-                v = Text(clean(tn.response, 55), style=f"bold {C_RED}" if tn.flag else "")
+                a = Text(clean(tn.prompt, 45), style=C_YELLOW)
+                # Show what the victim actually answered (the SQL it formulated)
+                # when available; fall back to the executed rows for old runs.
+                vic = tn.sql if tn.sql else tn.response
+                v = Text(clean(vic, 55), style=f"bold {C_RED}" if tn.flag else "")
                 dt.add_row(str(tn.n), a, v, FLAG if tn.flag else "", key=str(tn.n))
             if turns and self.follow:
                 dt.move_cursor(row=len(turns) - 1)
@@ -259,9 +268,38 @@ if _OK:
             if tn.prompt:
                 t.append("ATTACKER\n", style=f"bold {C_YELLOW}")
                 t.append(strip_think(tn.prompt) + "\n\n", style=C_YELLOW)
+
+            # What the victim model actually answered: the SQL/template it wrote.
+            if tn.sql:
+                t.append("VICTIM \u00b7 SQL\n", style=f"bold {C_GREEN}")
+                t.append(tn.sql.strip() + "\n", style=C_GREEN)
+                if tn.params:
+                    t.append("params ", style=f"bold {C_GREEN}")
+                    t.append(tn.params + "\n", style="dim")
+                t.append("\n")
+            elif tn.template:
+                t.append("VICTIM \u00b7 template\n", style=f"bold {C_GREEN}")
+                line = tn.template + (f"  {tn.params}" if tn.params else "")
+                t.append(line + "\n\n", style=C_GREEN)
+
+            # The victim's reasoning (chain-of-thought), when the model emitted it.
+            reasoning = think_text(tn.raw)
+            if reasoning:
+                t.append("VICTIM \u00b7 reasoning\n", style=f"bold {C_BLUE}")
+                t.append(reasoning + "\n\n", style="dim")
+
+            # Fallback: if we have raw output but couldn't parse SQL/template,
+            # show the model's literal answer so nothing is hidden.
+            if not tn.sql and not tn.template and tn.raw:
+                body = strip_think(tn.raw)
+                if body:
+                    t.append("VICTIM \u00b7 model output\n", style=f"bold {C_CYAN}")
+                    t.append(body + "\n\n", style=C_CYAN)
+
+            # The executed result rows (where leaked canary tokens appear).
             if tn.response:
-                lbl = f"VICTIM  {FLAG}\n" if tn.flag else "VICTIM\n"
-                t.append(lbl, style=f"bold {C_RED}" if tn.flag else f"bold {C_CYAN}")
+                lbl = f"RESULT  {FLAG}\n" if tn.flag else "RESULT\n"
+                t.append(lbl, style=f"bold {C_RED}" if tn.flag else f"bold {C_ORANGE}")
                 t.append(pretty_json(strip_think(tn.response)),
                          style=f"bold {C_RED}" if tn.flag else "")
             self.query_one("#detail-text", Static).update(t)

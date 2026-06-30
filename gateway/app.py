@@ -22,6 +22,7 @@ from .config import get_config, get_active_layers, env_provenance
 from .db import execute_transaction
 from .templates import execute_template, get_allowed_templates_for_role
 from .power import measure as power_measure
+from .power import POWER_LOG_FILE as _POWER_LOG_FILE
 
 import os
 
@@ -295,6 +296,34 @@ def _execute_from_model_output(model_output: Dict[str, Any], identity: Dict[str,
     logger.info("Executing model SQL for role=%s trace_id=%s", role, trace_id)
     return execute_transaction([sql_text], sql_params, identity, trace_id=trace_id)
 
+
+def _victim_log_path() -> str:
+    """Resolve the victim-transcript path, co-located with the power log so it
+    lands in ``<run_id>/<layer>/victim.jsonl`` during a sweep. Honour an explicit
+    ``VICTIM_LOG_FILE`` override; otherwise derive it from ``POWER_LOG_FILE``."""
+    explicit = os.environ.get("VICTIM_LOG_FILE", "")
+    if explicit:
+        return explicit
+    base = _POWER_LOG_FILE or "power_log.jsonl"
+    directory = os.path.dirname(base)
+    return os.path.join(directory, "victim.jsonl") if directory else "victim.jsonl"
+
+
+def _record_victim_turn(record: Dict[str, Any]) -> None:
+    """Append one victim-transcript line. Additive observability only — this is
+    NOT part of the API response and has no effect on canary scoring. Captures
+    the victim model's *actual* answer (raw output + the SQL/template it
+    formulated) keyed so the monitor can join it back to the stored PyRIT turn by
+    the exact attacker prompt + response strings."""
+    if os.environ.get("VICTIM_LOG_ENABLED", "1") != "1":
+        return
+    path = _victim_log_path()
+    try:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, default=str) + "\n")
+    except Exception as exc:  # pragma: no cover - best-effort logging
+        logger.warning("Failed to write victim transcript (%s): %s", path, exc)
+
 @app.post("/query", response_model=QueryResponse)
 async def process_query(
     request: QueryRequest,
@@ -362,10 +391,30 @@ async def process_query(
     
     end_time = time.time()
     total_latency_ms = (end_time - start_time) * 1000
-    
+
+    response_str = json.dumps({"rows": results}, default=str)
+
+    # Observability (additive, does NOT affect the API contract or canary
+    # scoring): persist the victim model's actual answer — its raw output and the
+    # SQL/template it formulated. Keyed by the exact attacker prompt + response
+    # strings PyRIT stores, so the monitor can join it back to the right turn.
+    _record_victim_turn({
+        "trace_id": trace_id,
+        "ts": time.time(),
+        "tenant": identity.get("tenant", ""),
+        "role": identity.get("role", ""),
+        "active_layers": active_layers,
+        "prompt": request.prompt,
+        "raw": llm_response,
+        "sql": model_output.get("sql", ""),
+        "params": model_output.get("params", []),
+        "template": model_output.get("template", ""),
+        "response": response_str,
+    })
+
     # Return enhanced response with both total and TTFT latencies
     return QueryResponse(
-        response=json.dumps({"rows": results}, default=str),
+        response=response_str,
         trace_id=trace_id,
         active_layers=active_layers,
         latency_ms=total_latency_ms,

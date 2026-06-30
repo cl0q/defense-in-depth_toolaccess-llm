@@ -51,6 +51,10 @@ class Turn:
     prompt: str
     response: str
     flag: bool = False
+    sql: str = ""          # SQL the victim model formulated (from victim.jsonl)
+    raw: str = ""          # full raw victim model output, incl. <think> reasoning
+    params: str = ""       # JSON-encoded bind params, "" when none
+    template: str = ""     # DT-mode template name, "" in free-SQL mode
 
 
 @dataclass
@@ -73,6 +77,7 @@ class State:
         self.live = Live()
         self._mtimes: dict[Path, float] = {}
         self._conv_cache: dict = {}  # str(path) → {"mt": float, "data": dict, "last": str}
+        self._victim_cache: dict = {}  # str(path) → {"mt": float, "records": list}
 
     # -- completed pairs -----------------------------------------------------
     def refresh_results(self) -> None:
@@ -137,13 +142,68 @@ class State:
         stl = rd / strat / layer
         db_path = stl / "pyrit.db"
         res_path = stl / "pyrit.results.json"
+        turns: list[Turn] = []
         if db_path.exists() and res_path.exists():
             conv_id = self._get_conv_id(res_path, goal)
             if conv_id:
                 turns = _chat_from_db(db_path, conv_id)
-                if turns:
-                    return turns
-        return _chat_from_runlog(stl / "run.log")
+        if not turns:
+            turns = _chat_from_runlog(stl / "run.log")
+        # Enrich with the victim model's real answer (SQL + raw output). The
+        # transcript lives at the per-layer dir (shared across strategies), the
+        # same place as power_log.jsonl.
+        self._enrich_victim(turns, rd / layer / "victim.jsonl")
+        return turns
+
+    def _victim_records(self, path: Path) -> list[dict]:
+        """Read victim.jsonl (mtime-cached). Returns records in file order."""
+        key = str(path)
+        mt = _mtime(path)
+        cached = self._victim_cache.get(key)
+        if cached is not None and cached["mt"] == mt:
+            return cached["records"]
+        records: list[dict] = []
+        if mt:
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            records.append(json.loads(line))
+                        except Exception:
+                            continue
+            except Exception:
+                records = []
+        self._victim_cache[key] = {"mt": mt, "records": records}
+        return records
+
+    def _enrich_victim(self, turns: list[Turn], victim_path: Path) -> None:
+        """Attach each turn's victim SQL/raw output by matching the exact
+        (prompt, response) pair the gateway recorded. Duplicate pairs are
+        consumed in file order so repeated identical calls map 1:1."""
+        if not turns:
+            return
+        records = self._victim_records(victim_path)
+        if not records:
+            return
+        from collections import deque
+        index: dict[tuple[str, str], deque] = {}
+        for r in records:
+            k = (str(r.get("prompt", "")).strip(), str(r.get("response", "")).strip())
+            index.setdefault(k, deque()).append(r)
+        for t in turns:
+            dq = index.get((t.prompt.strip(), t.response.strip()))
+            if not dq:
+                continue
+            r = dq.popleft()
+            t.sql = str(r.get("sql", "") or "")
+            t.raw = str(r.get("raw", "") or "")
+            t.template = str(r.get("template", "") or "")
+            p = r.get("params", [])
+            t.params = (json.dumps(p, ensure_ascii=False)
+                        if p not in ([], None, "", {}) else "")
 
     def _get_conv_id(self, results_path: Path, goal: str) -> str:
         """Look up conversation_id from results.json (mtime-cached)."""
