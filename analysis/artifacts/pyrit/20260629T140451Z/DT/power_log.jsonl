@@ -250,3 +250,15 @@
 {"trace_id": "2490c2b8-0ee6-4af3-9021-a23f69c804e1", "role": "victim", "active_layers": ["DT"], "energy_mj": 5048158, "duration_s": 12.85232, "timestamp": 1782802109.1088145, "gpu_index": 0}
 {"trace_id": "3b677b3d-93e3-44bc-890c-accf41bb949a", "role": "victim", "active_layers": ["DT"], "energy_mj": 5052270, "duration_s": 12.857678, "timestamp": 1782802122.0136385, "gpu_index": 0}
 {"trace_id": "002b612c-179a-4646-8f19-c08a213b8632", "role": "victim", "active_layers": ["DT"], "energy_mj": 5057956, "duration_s": 12.856792, "timestamp": 1782802134.915986, "gpu_index": 0}
+{"trace_id": "250dc2f5-81f9-447a-a292-f11bad87e014", "role": "victim", "active_layers": ["DT"], "energy_mj": 5115865, "duration_s": 12.866623, "timestamp": 1782802177.2504206, "gpu_index": 0}
+{"trace_id": "cd932066-beba-4405-92d5-336e1ef847e0", "role": "victim", "active_layers": ["DT"], "energy_mj": 5087582, "duration_s": 12.8503, "timestamp": 1782802190.144959, "gpu_index": 0}
+{"trace_id": "1164c625-43e4-4109-a848-3e7855030646", "role": "victim", "active_layers": ["DT"], "energy_mj": 5127533, "duration_s": 12.85035, "timestamp": 1782802203.0648174, "gpu_index": 0}
+{"trace_id": "79daed19-0594-4d27-a956-cf599628ab22", "role": "victim", "active_layers": ["DT"], "energy_mj": 5143568, "duration_s": 12.848195, "timestamp": 1782802215.9638073, "gpu_index": 0}
+{"trace_id": "d5f800e0-b37d-46de-abe7-ee4111dc421e", "role": "victim", "active_layers": ["DT"], "energy_mj": 5145649, "duration_s": 12.850861, "timestamp": 1782802228.863859, "gpu_index": 0}
+{"trace_id": "4d7fd01c-ed04-4d8d-b427-01c45d51a952", "role": "victim", "active_layers": ["DT"], "energy_mj": 8093018, "duration_s": 20.08787, "timestamp": 1782802253.2640684, "gpu_index": 0}
+{"trace_id": "c6dad629-0793-4f71-a1fd-0c52463ec90a", "role": "victim", "active_layers": ["DT"], "energy_mj": 6919097, "duration_s": 17.22428, "timestamp": 1782802270.5645578, "gpu_index": 0}
+{"trace_id": "325feecd-fe83-4d16-9d19-d2598018add4", "role": "victim", "active_layers": ["DT"], "energy_mj": 18456, "duration_s": 0.078345, "timestamp": 1782802270.7162197, "gpu_index": 0}
+{"trace_id": "a0f396cf-336a-405a-9a16-23f4c6227d36", "role": "victim", "active_layers": ["DT"], "energy_mj": 6138041, "duration_s": 15.192472, "timestamp": 1782802290.2879238, "gpu_index": 0}
+{"trace_id": "5058d5d6-24ee-4886-8eda-4a0807aa56d9", "role": "victim", "active_layers": ["DT"], "energy_mj": 5255061, "duration_s": 13.152953, "timestamp": 1782802303.516664, "gpu_index": 0}
+{"trace_id": "e0a0e986-5b24-438f-bdd2-3ece5d815ff0", "role": "victim", "active_layers": ["DT"], "energy_mj": 5255730, "duration_s": 13.142883, "timestamp": 1782802316.730854, "gpu_index": 0}
+{"trace_id": "3b437e9e-f8c3-47cb-af6b-43e8dfd06499", "role": "victim", "active_layers": ["DT"], "energy_mj": 5254968, "duration_s": 13.143845, "timestamp": 1782802329.9482484, "gpu_index": 0}
