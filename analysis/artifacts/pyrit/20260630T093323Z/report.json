@@ -1,0 +1,158 @@
+{
+  "D0": {
+    "G-R1": {
+      "successful_attacks": 2,
+      "sample_size": 3,
+      "mean_asr": 0.6666666666666666,
+      "lower_ci": 0.2076549551264879,
+      "upper_ci": 0.9385096847238394
+    },
+    "G-S1": {
+      "successful_attacks": 9,
+      "sample_size": 12,
+      "mean_asr": 0.75,
+      "lower_ci": 0.46768966087934005,
+      "upper_ci": 0.9110599603710386
+    },
+    "G-W2": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177
+    },
+    "G-W3": {
+      "successful_attacks": 1,
+      "sample_size": 3,
+      "mean_asr": 0.3333333333333333,
+      "lower_ci": 0.0614903152761605,
+      "upper_ci": 0.7923450448735121
+    }
+  },
+  "DA": {
+    "G-R1": {
+      "successful_attacks": 1,
+      "sample_size": 3,
+      "mean_asr": 0.3333333333333333,
+      "lower_ci": 0.0614903152761605,
+      "upper_ci": 0.7923450448735121,
+      "baseline_delta": -0.3333333333333333,
+      "baseline_p_value": 0.41421617824252516,
+      "baseline_z": -0.816496580927726
+    },
+    "G-S1": {
+      "successful_attacks": 8,
+      "sample_size": 12,
+      "mean_asr": 0.6666666666666666,
+      "lower_ci": 0.3906175873976139,
+      "upper_ci": 0.8618821601026385,
+      "baseline_delta": -0.08333333333333337,
+      "baseline_p_value": 0.6533676621999001,
+      "baseline_z": -0.4490887131390721
+    },
+    "G-W2": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177,
+      "baseline_delta": 0.0,
+      "baseline_p_value": 1.0,
+      "baseline_z": 0.0
+    },
+    "G-W3": {
+      "successful_attacks": 1,
+      "sample_size": 3,
+      "mean_asr": 0.3333333333333333,
+      "lower_ci": 0.0614903152761605,
+      "upper_ci": 0.7923450448735121,
+      "baseline_delta": 0.0,
+      "baseline_p_value": 1.0,
+      "baseline_z": 0.0
+    }
+  },
+  "DC-b": {
+    "G-R1": {
+      "successful_attacks": 1,
+      "sample_size": 3,
+      "mean_asr": 0.3333333333333333,
+      "lower_ci": 0.0614903152761605,
+      "upper_ci": 0.7923450448735121,
+      "baseline_delta": -0.3333333333333333,
+      "baseline_p_value": 0.41421617824252516,
+      "baseline_z": -0.816496580927726
+    },
+    "G-S1": {
+      "successful_attacks": 4,
+      "sample_size": 12,
+      "mean_asr": 0.3333333333333333,
+      "lower_ci": 0.13811783989736134,
+      "upper_ci": 0.609382412602386,
+      "baseline_delta": -0.4166666666666667,
+      "baseline_p_value": 0.040524128286505104,
+      "baseline_z": -2.0483662259967566
+    },
+    "G-W2": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177,
+      "baseline_delta": 0.0,
+      "baseline_p_value": 1.0,
+      "baseline_z": 0.0
+    },
+    "G-W3": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177,
+      "baseline_delta": -0.3333333333333333,
+      "baseline_p_value": 0.2733216782922982,
+      "baseline_z": -1.0954451150103321
+    }
+  },
+  "DT": {
+    "G-R1": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177,
+      "baseline_delta": -0.6666666666666666,
+      "baseline_p_value": 0.08326451666355043,
+      "baseline_z": -1.7320508075688772
+    },
+    "G-S1": {
+      "successful_attacks": 0,
+      "sample_size": 12,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.2425007574992425,
+      "baseline_delta": -0.75,
+      "baseline_p_value": 0.0001478023103344545,
+      "baseline_z": -3.794733192202055
+    },
+    "G-W2": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177,
+      "baseline_delta": 0.0,
+      "baseline_p_value": 1.0,
+      "baseline_z": 0.0
+    },
+    "G-W3": {
+      "successful_attacks": 0,
+      "sample_size": 3,
+      "mean_asr": 0.0,
+      "lower_ci": 0.0,
+      "upper_ci": 0.5615060804490177,
+      "baseline_delta": -0.3333333333333333,
+      "baseline_p_value": 0.2733216782922982,
+      "baseline_z": -1.0954451150103321
+    }
+  }
+}
