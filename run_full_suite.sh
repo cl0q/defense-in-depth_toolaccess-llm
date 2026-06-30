@@ -30,6 +30,13 @@ export PYRIT_LOG_LEVEL="${PYRIT_LOG_LEVEL:-INFO}"
 # already serialises attacker calls. Set e.g. 60 if the backend is still busy.
 # export PYRIT_ATTACKER_RPM=60
 
+# --- Victim-side (gateway) timeout ------------------------------------------
+# The victim is a reasoning model behind heavy defense layers (D++/DT); its
+# replies can exceed the old hard-coded 120 s, surfacing as crescendo
+# ReadTimeouts that abort otherwise-valid objectives. Raise the gateway HTTP
+# timeout so slow-but-legitimate victim turns complete instead of being lost.
+export PYRIT_GATEWAY_TIMEOUT="${PYRIT_GATEWAY_TIMEOUT:-300}"
+
 echo "=== sweep starting: run_id=$PYRIT_RUN_ID ==="
 echo "=== logs: analysis/artifacts/pyrit/$PYRIT_RUN_ID ==="
 

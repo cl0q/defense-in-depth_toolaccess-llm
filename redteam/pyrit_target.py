@@ -53,6 +53,30 @@ from oracle.canary import detect_canary_tokens_with_details  # noqa: E402
 # Target
 # ---------------------------------------------------------------------------
 
+_DEFAULT_GATEWAY_TIMEOUT = 300.0
+
+
+def _resolve_gateway_timeout(timeout: Optional[float]) -> float:
+    """Resolve the gateway HTTP timeout from arg → env → default.
+
+    The victim is a reasoning model behind heavy defense layers (D++/DT), and
+    crescendo turns can legitimately exceed the old hard-coded 120 s, surfacing
+    as ReadTimeouts that abort otherwise-valid objectives.  Make it tunable via
+    ``PYRIT_GATEWAY_TIMEOUT`` (seconds); fall back to a safer 300 s default.
+    """
+    if timeout is not None:
+        return timeout
+    raw = os.environ.get("PYRIT_GATEWAY_TIMEOUT", "").strip()
+    if raw:
+        try:
+            parsed = float(raw)
+            if parsed > 0:
+                return parsed
+        except ValueError:
+            pass
+    return _DEFAULT_GATEWAY_TIMEOUT
+
+
 def _make_gateway_capabilities() -> TargetCapabilities:
     """Build capabilities, tolerating field-set differences across patch versions."""
     for kwargs in (
@@ -83,6 +107,7 @@ class GatewayTarget(PromptTarget):
         endpoint: str = "http://127.0.0.1:8000/query",
         bearer_token: str = "tenant_a.customer",
         verbose: bool = False,
+        timeout: Optional[float] = None,
     ) -> None:
         super().__init__(
             endpoint=endpoint,
@@ -91,6 +116,7 @@ class GatewayTarget(PromptTarget):
             custom_configuration=TargetConfiguration(capabilities=_make_gateway_capabilities()),
         )
         self._bearer_token = bearer_token
+        self._timeout = _resolve_gateway_timeout(timeout)
         self.last_active_layers: list[str] = []
         self.last_trace_id: str = ""
         # Per-call message log: {prompt, response, status, active_layers}.
@@ -111,7 +137,7 @@ class GatewayTarget(PromptTarget):
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(self._endpoint, json={"prompt": prompt_text}, headers=headers)
 
         # 4xx  = defense layer blocked the attack prompt.
