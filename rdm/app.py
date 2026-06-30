@@ -13,6 +13,7 @@ Navigation
   j/k or up/down   move rows / scroll in the focused panel
   h                move focus left  (turns->matrix, detail->turns)
   l / Enter        move focus right (matrix->turns, turns->detail)
+  [ / ]            previous / next goal-chat in the selected cell
   left / right     in matrix: select strategy column
   Tab              cycle focus: matrix -> turns -> detail -> matrix
   f                toggle follow-live
@@ -133,6 +134,10 @@ if _OK:
             Binding("up",     "nav_up",     "up",        show=False),
             Binding("l",      "focus_right","-> panel"),
             Binding("h",      "focus_left", "<- panel"),
+            Binding("[",      "goal_prev",  "goal-"),
+            Binding("left_square_bracket",  "goal_prev", "goal-", show=False),
+            Binding("]",      "goal_next",  "goal+"),
+            Binding("right_square_bracket", "goal_next", "goal+", show=False),
             Binding("enter",  "select",     "Select"),
             Binding("tab",    "focus_next", "Next",      show=False),
             Binding("g",      "top",        "Top",       show=False),
@@ -147,8 +152,9 @@ if _OK:
             self.follow = True
             self.sel    = (0, 0)
             self._cur_turns: list[Turn] = []
-            self._turns_key = ("", "")
+            self._turns_key = None
             self._sel_turn: int = 0
+            self._sel_goal_idx: int = 0
 
         def compose(self) -> ComposeResult:
             yield Static(id="status")
@@ -230,18 +236,25 @@ if _OK:
 
         def _sync_turns(self, strats, layers):
             strat, layer = self._resolve_sel(strats, layers)
-            key = (strat, layer)
-            turns = (self.st.live.turns
-                     if self.follow
-                     else self.st._chat(strat, layer, ""))
+            goals = self.st.goals_for(strat, layer)
+            if goals:
+                self._sel_goal_idx = max(0, min(self._sel_goal_idx, len(goals) - 1))
+            if self.follow:
+                turns = self.st.live.turns
+                goal  = self.st.live.goal
+            else:
+                goal  = goals[self._sel_goal_idx] if goals else ""
+                turns = self.st._chat(strat, layer, goal)
+            key = (strat, layer, goal, self.follow)
             if key != self._turns_key or len(turns) != len(self._cur_turns):
                 self._turns_key  = key
                 self._cur_turns  = turns
-                self._load_turns_table(turns, strat, layer)
+                self._load_turns_table(turns, strat, layer, goal, goals)
             if self._cur_turns and 0 <= self._sel_turn < len(self._cur_turns):
                 self._show_detail(self._cur_turns[self._sel_turn])
 
-        def _load_turns_table(self, turns: list[Turn], strat: str, layer: str):
+        def _load_turns_table(self, turns: list[Turn], strat: str, layer: str,
+                              goal: str = "", goals: list[str] | None = None):
             dt = self.turns_tbl
             dt.clear()
             for tn in turns:
@@ -255,9 +268,16 @@ if _OK:
                 dt.move_cursor(row=len(turns) - 1)
                 self._sel_turn = len(turns) - 1
             src = "db" if any(len(t.prompt) > 250 for t in turns[:3]) else "log"
-            title = (f"chat  {strat}/{layer}  [{src}]"
+            goals = goals or []
+            if goal and len(goals) > 1 and goal in goals:
+                gtag = f"  {goal} [{goals.index(goal) + 1}/{len(goals)}]"
+            elif goal:
+                gtag = f"  {goal}"
+            else:
+                gtag = ""
+            title = (f"chat  {strat}/{layer}{gtag}  [{src}]"
                      + ("  live" if self.follow else "")
-                     + "  h=matrix  l/Enter=detail  j/k=row")
+                     + "   [ ]=goal  l=detail  j/k=row")
             try:
                 self.turns_tbl.border_title = title
             except Exception:
@@ -365,7 +385,35 @@ if _OK:
 
         def action_follow(self):
             self.follow = not self.follow
-            self._turns_key = ("", "")
+            self._turns_key = None
+            self.refresh_all()
+
+        def action_goal_prev(self):
+            self._cycle_goal(-1)
+
+        def action_goal_next(self):
+            self._cycle_goal(+1)
+
+        def _cycle_goal(self, delta: int):
+            """Step to the previous/next goal-chat within the selected cell."""
+            strats, layers = self.st.matrix()
+            strat, layer = self._resolve_sel(strats, layers)
+            goals = self.st.goals_for(strat, layer)
+            if len(goals) <= 1:
+                return
+            if self.follow:
+                # Leaving live-follow: pin the matrix selection to the cell we
+                # were watching and start browsing from the live goal.
+                try:
+                    self.sel = (layers.index(layer), strats.index(strat))
+                except ValueError:
+                    pass
+                if self.st.live.goal in goals:
+                    self._sel_goal_idx = goals.index(self.st.live.goal)
+                self.follow = False
+            self._sel_goal_idx = (self._sel_goal_idx + delta) % len(goals)
+            self._sel_turn  = 0
+            self._turns_key = None
             self.refresh_all()
 
         def action_next_theme(self):
@@ -450,7 +498,9 @@ if _OK:
             strat_idx = max(0, self.tbl.cursor_column - 1)
             self.sel    = (self.tbl.cursor_row, strat_idx)
             self.follow = False
-            self._turns_key = ("", "")
+            self._sel_goal_idx = 0
+            self._sel_turn = 0
+            self._turns_key = None
             self.refresh_all()
 
         def on_data_table_row_highlighted(self, ev: DataTable.RowHighlighted):

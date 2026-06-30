@@ -237,6 +237,25 @@ class State:
         strats = m.strategies or ["crescendo"]
         return strats, layers
 
+    def goals_for(self, strat: str, layer: str) -> list[str]:
+        """Ordered, de-duplicated attack goals tested for this strat×layer cell.
+
+        One cell aggregates several goals (G-A1, G-B2, …), each its own PyRIT
+        conversation. The UI uses this to let the user step through every goal's
+        chat instead of only seeing the last one.
+        """
+        p = self.pairs.get((strat, layer))
+        if not p:
+            return []
+        seen: set[str] = set()
+        out: list[str] = []
+        for c in p.cells:
+            g = (c.goal or "").strip()
+            if g and g != "?" and g not in seen:
+                seen.add(g)
+                out.append(g)
+        return out
+
 
 def _mtime(p: Path) -> float:
     try:
