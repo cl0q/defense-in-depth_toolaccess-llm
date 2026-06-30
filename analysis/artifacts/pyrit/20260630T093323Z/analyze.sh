@@ -3,7 +3,18 @@
 # Analyzes every layer's PyRIT results + power logs from this run.
 set -euo pipefail
 cd "/home/secai2/defense-in-depth_toolaccess-llm"
-python analysis/stats.py \
+# Resolve a Python 3 interpreter: explicit override -> the venv that ran this
+# sweep -> python3 -> python. stats.py is pure-stdlib, so any Python 3 works;
+# the server has no bare 'python', which is why earlier auto-analysis failed.
+PYTHON="${PYRIT_PYTHON:-/home/secai2/defense-in-depth_toolaccess-llm/redteam/pyrit_venv/bin/python}"
+if [ ! -x "$PYTHON" ]; then
+  PYTHON="$(command -v python3 || command -v python || true)"
+fi
+if [ -z "$PYTHON" ]; then
+  echo "analyze.sh: no Python 3 interpreter found (set PYRIT_PYTHON)." >&2
+  exit 1
+fi
+"$PYTHON" analysis/stats.py \
   --artifacts '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/**/pyrit.results.json' \
   --power-log '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/**/power_log.jsonl' \
   --idle-baseline '/home/secai2/defense-in-depth_toolaccess-llm/idle_baseline.jsonl' \

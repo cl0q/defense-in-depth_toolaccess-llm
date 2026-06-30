@@ -375,7 +375,18 @@ cat > "$analyze_script" <<EOF
 # Analyzes every layer's PyRIT results + power logs from this run.
 set -euo pipefail
 cd "$repo_root"
-python analysis/stats.py \\
+# Resolve a Python 3 interpreter: explicit override → the venv that ran this
+# sweep → python3 → python. stats.py is pure-stdlib, so any Python 3 works;
+# the server has no bare 'python', which is why earlier auto-analysis failed.
+PYTHON="\${PYRIT_PYTHON:-$pyrit_python}"
+if [ ! -x "\$PYTHON" ]; then
+  PYTHON="\$(command -v python3 || command -v python || true)"
+fi
+if [ -z "\$PYTHON" ]; then
+  echo "analyze.sh: no Python 3 interpreter found (set PYRIT_PYTHON)." >&2
+  exit 1
+fi
+"\$PYTHON" analysis/stats.py \\
   --artifacts '$run_dir/**/pyrit.results.json' \\
   --power-log '$run_dir/**/power_log.jsonl' \\
   --idle-baseline '$idle_baseline' \\
@@ -400,7 +411,7 @@ log_rule "analyze everything"
 log_step "one-liner:   ${C_BGREEN}bash ${analyze_script}${C_RESET}"
 echo ""
 log_info "…or copy-paste the full command:"
-printf '%s\n' "${C_GREEN}      python analysis/stats.py \\
+printf '%s\n' "${C_GREEN}      ${pyrit_python} analysis/stats.py \\
         --artifacts '$run_dir/**/pyrit.results.json' \\
         --power-log '$run_dir/**/power_log.jsonl' \\
         --idle-baseline '$idle_baseline' \\
