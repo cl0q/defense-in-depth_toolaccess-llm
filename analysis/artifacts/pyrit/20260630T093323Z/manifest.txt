@@ -1,0 +1,12 @@
+run_id=20260630T093323Z
+git_sha=c587643
+strategies=crescendo,redteam,tap
+goals=G-R1,G-W2,G-W3,G-S1
+max_turns=6
+max_backtracks=5
+trials=1
+attacker_endpoint=http://127.0.0.1:8002/v1
+attacker_model=hermes-70b
+gateway_manage=1
+gateway_endpoint=http://127.0.0.1:8000/query
+layers=D0,DA,DC-b,DT

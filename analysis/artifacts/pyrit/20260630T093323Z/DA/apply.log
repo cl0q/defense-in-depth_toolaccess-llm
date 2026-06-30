@@ -1,0 +1,30 @@
+=== Layer DA: applying defense profile ===
+[90m12:50:14[0m [94m▶[0m  set_layer: profile=[1mDA[0m active=[[36mDA[0m]
+[90m12:50:14[0m [92m✓[0m  set_layer: wrote gateway layer flags → /home/secai2/defense-in-depth_toolaccess-llm/.env
+[90m12:50:14[0m [92m✓[0m  [db] applied db/teardown/02_grants_down.sql
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:12: NOTICE:  policy "pu_admin" for relation "platform_users" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:13: NOTICE:  policy "pu_self_select" for relation "platform_users" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:14: NOTICE:  policy "pu_self_update" for relation "platform_users" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:15: NOTICE:  policy "merchants_admin" for relation "merchants" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:16: NOTICE:  policy "merchants_own" for relation "merchants" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:17: NOTICE:  policy "customers_admin" for relation "customers" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:18: NOTICE:  policy "customers_self" for relation "customers" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:19: NOTICE:  policy "customers_merchant_read" for relation "customers" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:20: NOTICE:  policy "products_admin" for relation "products" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:21: NOTICE:  policy "products_browse" for relation "products" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:22: NOTICE:  policy "products_merchant" for relation "products" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:23: NOTICE:  policy "orders_admin" for relation "orders" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:24: NOTICE:  policy "orders_customer" for relation "orders" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:25: NOTICE:  policy "orders_merchant" for relation "orders" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:26: NOTICE:  policy "order_items_admin" for relation "order_items" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:27: NOTICE:  policy "order_items_customer" for relation "order_items" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:28: NOTICE:  policy "order_items_merchant" for relation "order_items" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:29: NOTICE:  policy "payments_admin" for relation "payments" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:30: NOTICE:  policy "payments_customer" for relation "payments" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:31: NOTICE:  policy "audit_admin_read" for relation "audit_log" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/03_rls_down.sql:32: NOTICE:  policy "audit_append" for relation "audit_log" does not exist, skipping
+[90m12:50:14[0m [92m✓[0m  [db] applied db/teardown/03_rls_down.sql
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/04_masking_down.sql:14: NOTICE:  view "products_catalog" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/04_masking_down.sql:15: NOTICE:  view "payments_masked" does not exist, skipping
+[90m12:50:14[0m [92m✓[0m  [db] applied db/teardown/04_masking_down.sql
+[90m12:50:14[0m [92m✓[0m  set_layer: profile=[1mDA[0m applied [2m(restart gateway to load flag changes)[0m

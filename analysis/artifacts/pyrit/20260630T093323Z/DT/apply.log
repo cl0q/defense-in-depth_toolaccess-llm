@@ -1,0 +1,9 @@
+=== Layer DT: applying defense profile ===
+[90m16:42:45[0m [94m▶[0m  set_layer: profile=[1mDT[0m active=[[36mDT[0m]
+[90m16:42:45[0m [92m✓[0m  set_layer: wrote gateway layer flags → /home/secai2/defense-in-depth_toolaccess-llm/.env
+[90m16:42:45[0m [92m✓[0m  [db] applied db/teardown/02_grants_down.sql
+[90m16:42:45[0m [92m✓[0m  [db] applied db/teardown/03_rls_down.sql
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/04_masking_down.sql:14: NOTICE:  view "products_catalog" does not exist, skipping
+psql:/home/secai2/defense-in-depth_toolaccess-llm/db/teardown/04_masking_down.sql:15: NOTICE:  view "payments_masked" does not exist, skipping
+[90m16:42:45[0m [92m✓[0m  [db] applied db/teardown/04_masking_down.sql
+[90m16:42:45[0m [92m✓[0m  set_layer: profile=[1mDT[0m applied [2m(restart gateway to load flag changes)[0m
