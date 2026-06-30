@@ -4,7 +4,48 @@ cd "$(dirname "$0")"
 
 export GATEWAY_PYTHON="$PWD/gateway/venv/bin/python"
 export PYRIT_PYTHON="$PWD/redteam/pyrit_venv/bin/python"
-export PYRIT_STRATEGIES="crescendo,redteam,tap"
+
+# --- Run size profile --------------------------------------------------------
+# SWEEP_PROFILE chooses how much of the matrix to run. Anything you export
+# yourself (PYRIT_LAYERS / PYRIT_GOALS / PYRIT_STRATEGIES / PYRIT_MAX_TURNS /
+# PYRIT_TRIALS) always wins over the profile — these are only defaults.
+#
+#   full  (default) — every layer (8) × every strategy (3) × every goal
+#                     (9 objectives) × 1 trial, 10 turns each   → 216 cells.
+#   mid             — representative end-to-end verification slice that still
+#                     exercises every strategy and every category of defense:
+#                       layers  D0   (baseline / no defense)
+#                               DA   (gateway-flag defense)
+#                               DC-b (Postgres-side defense; gateway reports D0)
+#                               DT   (heavy reasoning model / slow victim)
+#                       strats  crescendo, redteam, tap   (all three engines)
+#                       goals   G-R1 (read control, never collapsed) +
+#                               G-W2, G-W3 (the worst TAP collapses pre-fix)
+#                     4 × 3 × 3 × 1 trial, 6 turns             → 36 cells.
+#   smoke           — tiny sanity check: 2 layers × 3 strategies × 1 goal,
+#                     4 turns                                  → 6 cells.
+export SWEEP_PROFILE="${SWEEP_PROFILE:-full}"
+case "$SWEEP_PROFILE" in
+  full)
+    : # use the built-in full matrix (no restrictions)
+    ;;
+  mid)
+    export PYRIT_LAYERS="${PYRIT_LAYERS:-D0,DA,DC-b,DT}"
+    export PYRIT_GOALS="${PYRIT_GOALS:-G-R1,G-W2,G-W3}"
+    export PYRIT_MAX_TURNS="${PYRIT_MAX_TURNS:-6}"
+    ;;
+  smoke)
+    export PYRIT_LAYERS="${PYRIT_LAYERS:-D0,DT}"
+    export PYRIT_GOALS="${PYRIT_GOALS:-G-R1}"
+    export PYRIT_MAX_TURNS="${PYRIT_MAX_TURNS:-4}"
+    ;;
+  *)
+    echo "run_full_suite.sh: unknown SWEEP_PROFILE='$SWEEP_PROFILE' (use: full | mid | smoke)" >&2
+    exit 1
+    ;;
+esac
+
+export PYRIT_STRATEGIES="${PYRIT_STRATEGIES:-crescendo,redteam,tap}"
 export PYRIT_MAX_TURNS="${PYRIT_MAX_TURNS:-10}"
 export PYRIT_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 # Surface actual exception tracebacks from the attacker LLM when nodes fail.
@@ -62,6 +103,7 @@ echo "$SWEEP_PID" > "$PWD/.sweep.pid"
 
 log_banner "Sweep launched · run ${PYRIT_RUN_ID}"
 log_kv "sweep pid"  "${SWEEP_PID}"
+log_kv "profile"    "${SWEEP_PROFILE}  ${C_DIM}(layers=${PYRIT_LAYERS:-all} · goals=${PYRIT_GOALS:-all} · strat=${PYRIT_STRATEGIES} · turns=${PYRIT_MAX_TURNS})${C_RESET}"
 log_kv "console"    "tail -f sweep_full.log"
 log_kv "artifacts"  "analysis/artifacts/pyrit/${PYRIT_RUN_ID}"
 log_kv "pid file"   "$PWD/.sweep.pid"
