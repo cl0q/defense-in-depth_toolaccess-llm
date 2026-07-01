@@ -14,6 +14,11 @@ from collections import defaultdict
 from typing import Dict, List, Tuple, Any, Optional
 
 
+# Canary sensitivity classes, ordered from least to most sensitive. Any class
+# not listed here is appended (sorted) after these in report columns.
+SENSITIVITY_ORDER = ["PUBLIC", "INTERNAL", "SECRET"]
+
+
 def wilson_score_interval(successes: int, n: int, z: float = 1.96) -> Tuple[float, float]:
     if n == 0:
         return 0.0, 0.0
@@ -89,6 +94,7 @@ def _extract_goal(test: Dict[str, Any], tags: Dict[str, str]) -> str:
 
 def load_experiment_data(artifact_glob: str) -> Dict[str, Any]:
     grouped = defaultdict(lambda: defaultdict(lambda: {"successes": 0, "total": 0}))
+    leaks: List[Dict[str, Any]] = []
 
     artifact_files = sorted(glob.glob(artifact_glob, recursive=True))
     for path in artifact_files:
@@ -108,9 +114,37 @@ def load_experiment_data(artifact_glob: str) -> Dict[str, Any]:
             grouped[config][goal]["total"] += 1
             grouped[config][goal]["successes"] += 1 if successful else 0
 
+            # Canary-leak ground truth: which distinct sensitive tokens escaped
+            # in this conversation. Deduplicated per conversation, so a token
+            # that repeats across several turns counts once. This is independent
+            # of the scorer's pass/fail — it characterises WHAT data leaked
+            # (sensitivity class + whether it crossed a tenant boundary).
+            metadata = test.get("metadata", {}) or {}
+            leaked_tokens = metadata.get("leaked_tokens") or []
+            conversation_id = metadata.get("conversation_id")
+            seen_tokens = set()
+            for tok in leaked_tokens:
+                token = tok.get("token")
+                if token in seen_tokens:
+                    continue
+                seen_tokens.add(token)
+                leaks.append(
+                    {
+                        "config": config,
+                        "goal": goal,
+                        "conversation_id": conversation_id,
+                        "token": token,
+                        "sensitivity": tok.get("sensitivity") or "UNKNOWN",
+                        "tenant": tok.get("tenant"),
+                        "field": tok.get("field"),
+                        "cross_tenant": bool(tok.get("cross_tenant", False)),
+                    }
+                )
+
     return {
         "artifact_files": artifact_files,
         "grouped": grouped,
+        "leaks": leaks,
     }
 
 
@@ -158,6 +192,157 @@ def add_baseline_significance(results: Dict[str, Any], baseline: str = "D0") -> 
             values["baseline_z"] = test["z"]
 
     return results
+
+
+def summarize_leaks(
+    leaks: List[Dict[str, Any]], all_configs: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """
+    Aggregate per-conversation-deduplicated leak records into a per-config
+    breakdown by sensitivity class and tenant scope.
+
+    Each record in ``leaks`` is one distinct canary token that escaped in one
+    conversation. This function counts, per configuration (layer):
+      - total leaked tokens
+      - split by sensitivity class (PUBLIC / INTERNAL / SECRET / …)
+      - split by tenant scope (cross-tenant vs same-tenant)
+      - the sensitivity × scope cross-tab (the key characterisation: e.g. a
+        layer that stops cross-tenant reads but still leaks same-tenant SECRETs)
+
+    ``all_configs`` (e.g. the configs seen in the ASR stats) are zero-filled so
+    a layer that leaked nothing still appears as an explicit all-zero row.
+    """
+    raw: Dict[str, Any] = {}
+    sensitivities: set = set()
+
+    for lk in leaks:
+        cfg = lk.get("config", "UNKNOWN")
+        sens = lk.get("sensitivity") or "UNKNOWN"
+        sensitivities.add(sens)
+        cross = bool(lk.get("cross_tenant", False))
+        scope = "cross" if cross else "same"
+
+        acc = raw.setdefault(
+            cfg,
+            {
+                "total": 0,
+                "cross": 0,
+                "same": 0,
+                "sens": defaultdict(int),
+                "scope": defaultdict(int),
+                "tokens": set(),
+            },
+        )
+        acc["total"] += 1
+        acc["sens"][sens] += 1
+        acc["cross" if cross else "same"] += 1
+        acc["scope"][f"{sens}|{scope}"] += 1
+        acc["tokens"].add(lk.get("token"))
+
+    ordered_sens = [s for s in SENSITIVITY_ORDER if s in sensitivities] + sorted(
+        s for s in sensitivities if s not in SENSITIVITY_ORDER
+    )
+
+    configs = set(raw.keys())
+    if all_configs:
+        configs |= set(all_configs)
+
+    by_config: Dict[str, Any] = {}
+    for cfg in _ordered_leak_configs(configs):
+        acc = raw.get(cfg)
+        if acc is None:
+            by_config[cfg] = {
+                "total": 0,
+                "cross_tenant": 0,
+                "same_tenant": 0,
+                "distinct_tokens": 0,
+                "sensitivity": {s: 0 for s in ordered_sens},
+                "sens_scope": {},
+            }
+        else:
+            by_config[cfg] = {
+                "total": acc["total"],
+                "cross_tenant": acc["cross"],
+                "same_tenant": acc["same"],
+                "distinct_tokens": len(acc["tokens"]),
+                "sensitivity": {s: acc["sens"].get(s, 0) for s in ordered_sens},
+                "sens_scope": dict(acc["scope"]),
+            }
+
+    return {
+        "by_config": by_config,
+        "sensitivities": ordered_sens,
+        "total_leak_events": len(leaks),
+    }
+
+
+def _ordered_leak_configs(by_config: Dict[str, Any]) -> List[str]:
+    """Canonical layer ordering (matches the power report), unknowns sorted last."""
+    order = ["D0", "DA", "DB", "DC-a", "DC-b", "DC-c", "DT", "D++"]
+    return [c for c in order if c in by_config] + sorted(
+        c for c in by_config if c not in order
+    )
+
+
+def generate_leak_report_text(leak_summary: Dict[str, Any]) -> str:
+    lines: List[str] = []
+    lines.append("## Leaked-Token Sensitivity & Tenant Scope by Layer")
+    lines.append("")
+
+    by_config = leak_summary.get("by_config", {})
+    sens_cols = leak_summary.get("sensitivities", [])
+    total_events = leak_summary.get("total_leak_events", 0)
+
+    lines.append(
+        "Distinct canary tokens that escaped, deduplicated per conversation "
+        "(a token repeated across turns counts once). *Sensitivity* is the "
+        "canary's data classification; *cross-tenant* means the token belonged "
+        "to a tenant other than the attacker's."
+    )
+    lines.append("")
+    lines.append(f"Total leak events (deduped per conversation): **{total_events}**")
+    lines.append("")
+
+    if total_events == 0:
+        lines.append("No canary tokens leaked in any configuration.")
+        return "\n".join(lines)
+
+    # Table 1: per-layer sensitivity counts + tenant scope + total.
+    header = "| Layer | " + " | ".join(sens_cols) + " | Cross-tenant | Same-tenant | Total |"
+    sep = "|---|" + "---:|" * (len(sens_cols) + 3)
+    lines.append(header)
+    lines.append(sep)
+    for cfg in _ordered_leak_configs(by_config):
+        e = by_config[cfg]
+        sens_cells = " | ".join(str(e["sensitivity"].get(s, 0)) for s in sens_cols)
+        lines.append(
+            f"| {cfg} | {sens_cells} | {e['cross_tenant']} | {e['same_tenant']} | {e['total']} |"
+        )
+    lines.append("")
+
+    # Table 2: sensitivity × tenant-scope cross-tab (cross / same per cell).
+    lines.append("### Sensitivity × tenant-scope cross-tab")
+    lines.append("")
+    lines.append("Each cell is **cross-tenant / same-tenant**.")
+    lines.append("")
+    header2 = "| Layer | " + " | ".join(sens_cols) + " |"
+    sep2 = "|---|" + "---|" * len(sens_cols)
+    lines.append(header2)
+    lines.append(sep2)
+    for cfg in _ordered_leak_configs(by_config):
+        e = by_config[cfg]
+        cells = []
+        for s in sens_cols:
+            xt = e["sens_scope"].get(f"{s}|cross", 0)
+            sm = e["sens_scope"].get(f"{s}|same", 0)
+            cells.append(f"{xt} / {sm}")
+        lines.append(f"| {cfg} | " + " | ".join(cells) + " |")
+    lines.append("")
+    lines.append(
+        "- PUBLIC leaks are typically cross-tenant reads; INTERNAL/SECRET "
+        "same-tenant leaks indicate in-tenant sensitive-column exposure."
+    )
+    return "\n".join(lines)
 
 
 def generate_detailed_report(results: Dict[str, Any], artifact_files: List[str]) -> str:
@@ -395,16 +580,23 @@ def main() -> None:
         default="analysis/power_report.json",
         help="Path for machine-readable power output",
     )
+    parser.add_argument(
+        "--leak-out",
+        default="analysis/leak_report.json",
+        help="Path for machine-readable leaked-token sensitivity/scope breakdown",
+    )
     args = parser.parse_args()
 
     loaded = load_experiment_data(args.artifacts)
     stats = calculate_asr_stats(loaded["grouped"])
     stats = add_baseline_significance(stats)
+    leak_summary = summarize_leaks(loaded.get("leaks", []), all_configs=list(stats.keys()))
 
     power_data = load_power_data(args.power_log, args.idle_baseline)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     report = generate_detailed_report(stats, loaded["artifact_files"])
+    report += "\n\n" + generate_leak_report_text(leak_summary)
     report += "\n\n" + generate_power_report_text(power_data)
 
     with open(args.out, "w", encoding="utf-8") as handle:
@@ -416,9 +608,15 @@ def main() -> None:
     with open(args.power_out, "w", encoding="utf-8") as handle:
         json.dump(power_data, handle, indent=2)
 
+    if os.path.dirname(args.leak_out):
+        os.makedirs(os.path.dirname(args.leak_out), exist_ok=True)
+    with open(args.leak_out, "w", encoding="utf-8") as handle:
+        json.dump(leak_summary, handle, indent=2)
+
     print(f"Wrote report: {args.out}")
     print(f"Wrote JSON stats: {args.json_out}")
     print(f"Wrote power report: {args.power_out}")
+    print(f"Wrote leak report: {args.leak_out}")
 
 
 if __name__ == "__main__":

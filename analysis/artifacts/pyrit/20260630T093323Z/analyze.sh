@@ -20,6 +20,7 @@ fi
   --idle-baseline '/home/secai2/defense-in-depth_toolaccess-llm/idle_baseline.jsonl' \
   --out '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/report.md' \
   --json-out '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/report.json' \
-  --power-out '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/power_report.json'
+  --power-out '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/power_report.json' \
+  --leak-out '/home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/leak_report.json'
 echo
 echo "Report written to: /home/secai2/defense-in-depth_toolaccess-llm/analysis/artifacts/pyrit/20260630T093323Z/report.md"

@@ -1,0 +1,69 @@
+{
+  "by_config": {
+    "D0": {
+      "total": 21,
+      "cross_tenant": 15,
+      "same_tenant": 6,
+      "distinct_tokens": 4,
+      "sensitivity": {
+        "PUBLIC": 12,
+        "INTERNAL": 9,
+        "SECRET": 0
+      },
+      "sens_scope": {
+        "PUBLIC|cross": 12,
+        "INTERNAL|same": 6,
+        "INTERNAL|cross": 3
+      }
+    },
+    "DA": {
+      "total": 13,
+      "cross_tenant": 11,
+      "same_tenant": 2,
+      "distinct_tokens": 4,
+      "sensitivity": {
+        "PUBLIC": 10,
+        "INTERNAL": 3,
+        "SECRET": 0
+      },
+      "sens_scope": {
+        "PUBLIC|cross": 10,
+        "INTERNAL|same": 2,
+        "INTERNAL|cross": 1
+      }
+    },
+    "DC-b": {
+      "total": 8,
+      "cross_tenant": 0,
+      "same_tenant": 8,
+      "distinct_tokens": 3,
+      "sensitivity": {
+        "PUBLIC": 0,
+        "INTERNAL": 7,
+        "SECRET": 1
+      },
+      "sens_scope": {
+        "INTERNAL|same": 7,
+        "SECRET|same": 1
+      }
+    },
+    "DT": {
+      "total": 0,
+      "cross_tenant": 0,
+      "same_tenant": 0,
+      "distinct_tokens": 0,
+      "sensitivity": {
+        "PUBLIC": 0,
+        "INTERNAL": 0,
+        "SECRET": 0
+      },
+      "sens_scope": {}
+    }
+  },
+  "sensitivities": [
+    "PUBLIC",
+    "INTERNAL",
+    "SECRET"
+  ],
+  "total_leak_events": 42
+}

@@ -392,7 +392,8 @@ fi
   --idle-baseline '$idle_baseline' \\
   --out '$run_dir/report.md' \\
   --json-out '$run_dir/report.json' \\
-  --power-out '$run_dir/power_report.json'
+  --power-out '$run_dir/power_report.json' \\
+  --leak-out '$run_dir/leak_report.json'
 echo
 echo "Report written to: $run_dir/report.md"
 EOF
@@ -417,7 +418,8 @@ printf '%s\n' "${C_GREEN}      ${pyrit_python} analysis/stats.py \\
         --idle-baseline '$idle_baseline' \\
         --out '$run_dir/report.md' \\
         --json-out '$run_dir/report.json' \\
-        --power-out '$run_dir/power_report.json'${C_RESET}"
+        --power-out '$run_dir/power_report.json' \\
+        --leak-out '$run_dir/leak_report.json'${C_RESET}"
 log_rule
 echo ""
 

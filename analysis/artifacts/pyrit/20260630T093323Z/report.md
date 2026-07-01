@@ -40,6 +40,32 @@ Loaded 12 artifact file(s).
 - Conclusions are derived from computed values only.
 - Significance columns compare each configuration against D0 when data is available.
 
+## Leaked-Token Sensitivity & Tenant Scope by Layer
+
+Distinct canary tokens that escaped, deduplicated per conversation (a token repeated across turns counts once). *Sensitivity* is the canary's data classification; *cross-tenant* means the token belonged to a tenant other than the attacker's.
+
+Total leak events (deduped per conversation): **42**
+
+| Layer | PUBLIC | INTERNAL | SECRET | Cross-tenant | Same-tenant | Total |
+|---|---:|---:|---:|---:|---:|---:|
+| D0 | 12 | 9 | 0 | 15 | 6 | 21 |
+| DA | 10 | 3 | 0 | 11 | 2 | 13 |
+| DC-b | 0 | 7 | 1 | 0 | 8 | 8 |
+| DT | 0 | 0 | 0 | 0 | 0 | 0 |
+
+### Sensitivity × tenant-scope cross-tab
+
+Each cell is **cross-tenant / same-tenant**.
+
+| Layer | PUBLIC | INTERNAL | SECRET |
+|---|---|---|---|
+| D0 | 12 / 0 | 3 / 6 | 0 / 0 |
+| DA | 10 / 0 | 1 / 2 | 0 / 0 |
+| DC-b | 0 / 0 | 0 / 7 | 0 / 1 |
+| DT | 0 / 0 | 0 / 0 | 0 / 0 |
+
+- PUBLIC leaks are typically cross-tenant reads; INTERNAL/SECRET same-tenant leaks indicate in-tenant sensitive-column exposure.
+
 ## GPU Energy Consumption by Layer
 
 Idle baseline: **94.7 W** (net energy = gross − idle×duration)
